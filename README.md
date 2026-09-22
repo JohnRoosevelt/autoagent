@@ -1,0 +1,115 @@
+# AutoAgent
+
+一个用 Rust 从零实现的 Agent 学习项目。
+
+本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
+
+> 当前仍处于早期阶段：已经完成最小化的 LLM 对话调用与配置加载。
+
+## 当前能力
+
+- 使用 `reqwest` 向兼容 OpenAI Chat Completions 协议的服务发起请求；
+- 默认使用 OpenRouter：`https://openrouter.ai/api/v1`；
+- 默认模型为 `openrouter/free`，由 OpenRouter 从可用免费模型中路由；
+- 通过环境变量配置模型服务、API Key 与模型名称；
+- 对配置错误、网络错误、不可重试的 `4xx` 错误、可重试的 `408` / `429` / `5xx` 错误进行分类；
+- 提供 `scripts/run.sh`，避免每次手动输入环境变量。
+
+## 项目结构
+
+```text
+.
+├── src/
+│   ├── main.rs          # 程序入口：创建客户端并发起一次示例对话
+│   ├── llm.rs           # LLM 错误类型与重试判断
+│   └── llm/
+│       └── client.rs    # OpenAI-compatible LLM HTTP 客户端
+├── scripts/
+│   └── run.sh           # 加载 .env 并启动项目
+├── .env.example         # 环境变量模板
+└── Cargo.toml
+```
+
+## 环境要求
+
+- Rust（建议使用当前 stable 工具链）
+- 一个 OpenRouter API Key
+
+## 配置
+
+复制环境变量模板：
+
+```sh
+cp .env.example .env
+```
+
+编辑 `.env`，填入你的 OpenRouter API Key：
+
+```dotenv
+AGENT_BASE_URL=https://openrouter.ai/api/v1
+AGENT_API_KEY=your_openrouter_api_key_here
+AGENT_MODEL=openrouter/free
+```
+
+`AGENT_BASE_URL` 只填写 API 版本根路径，不要附加 `/chat/completions`；客户端会自行拼接该路径。
+
+`.env` 已被 `.gitignore` 忽略，请不要提交 API Key。
+
+## 运行
+
+推荐使用启动脚本：
+
+```sh
+./scripts/run.sh
+```
+
+脚本会加载 `.env` 中的变量后执行：
+
+```sh
+cargo r -q
+```
+
+其中 `r` 是 Cargo 对 `run` 的内置简写，`-q` 会隐藏 Cargo 的常规构建日志，但不会隐藏程序输出或错误信息。
+
+也可以手动设置环境变量后执行：
+
+```sh
+cargo run
+```
+
+## 当前示例
+
+当前入口会向模型发送：
+
+```text
+用一句话解释什么是 HTTP
+```
+
+然后输出所使用的模型名和模型响应。
+
+## 错误处理约定
+
+- `main.rs` 使用 `anyhow::Result` 作为应用入口的统一错误出口；
+- `llm` 模块使用 `thiserror` 定义 `LlmError`，让调用方可以依据错误类型决定是否重试；
+- `408`、`429` 与 `5xx` 被视为可重试的 HTTP 错误；
+- 缺失或为空的 `AGENT_API_KEY` 会被识别为配置错误，并在发起网络请求前返回。
+
+## 后续方向
+
+以下是计划逐步探索的方向，具体实现会随着学习和实践调整：
+
+- 流式响应；
+- 重试、退避与限流处理；
+- 对话历史与上下文管理；
+- Tool Calling / Function Calling；
+- 多步骤任务规划与执行；
+- 更完善的日志、测试与可观测性。
+
+## 开发检查
+
+```sh
+cargo fmt --check
+cargo check
+cargo clippy -- -D warnings
+cargo test
+```
