@@ -16,6 +16,20 @@ pub struct ChatResponse {
     pub usage: Usage,
 }
 
+/// 由 LLM 流式协议转换而来的领域事件。
+///
+/// 调用方不必了解 provider 的 SSE 格式，只需消费这些事件。工具调用相关的事件
+/// 会在引入 Tool Calling 数据模型时再扩展。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StreamEvent {
+    /// 服务端已接受请求并返回成功响应头。
+    Start,
+    /// 新到达的一小段回复正文。
+    TextDelta(String),
+    /// 流已正常结束，携带聚合完成的完整响应。
+    Done(ChatResponse),
+}
+
 /// LLM 调用错误的分类。
 /// 为什么不直接用 anyhow？因为"能不能重试"取决于"错在哪一层"，
 /// 网络抖动值得重试，API key 写错重试一万次也没用。

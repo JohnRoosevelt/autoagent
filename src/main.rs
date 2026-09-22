@@ -1,8 +1,10 @@
 mod llm;
 mod message;
 
-use llm::client::LlmClient;
+use llm::{StreamEvent, client::LlmClient};
 use message::Conversation;
+use std::io::Write;
+use tokio::sync::mpsc;
 
 // 属性宏：把 async main 改写成同步 main，并在内部构建/启动 tokio 运行时
 #[tokio::main]
@@ -17,11 +19,30 @@ async fn main() -> anyhow::Result<()> {
     conversation.add_user("我叫小赤。");
 
     for round in 1..=3 {
-        let response = client.chat(conversation.messages()).await?;
         println!("-- 第 {round} 轮 --");
-        println!("input_tokens = {}", response.usage.input_tokens);
-        println!("output_tokens = {}", response.usage.output_tokens);
-        println!("回答: {}", response.content);
+        let (tx, mut rx) = mpsc::channel(32);
+        let producer = tokio::spawn({
+            let client = client.clone();
+            let history = conversation.messages().to_vec();
+            async move { client.chat_stream(&history, tx).await }
+        });
+
+        // 网络任务生产事件；这里的消费者只负责呈现，不参与 SSE 协议解析。
+        while let Some(event) = rx.recv().await {
+            match event {
+                StreamEvent::Start => print!("回答: "),
+                StreamEvent::TextDelta(delta) => {
+                    print!("{delta}");
+                    std::io::stdout().flush().expect("无法刷新标准输出");
+                }
+                StreamEvent::Done(response) => {
+                    println!();
+                    println!("input_tokens = {}", response.usage.input_tokens);
+                    println!("output_tokens = {}", response.usage.output_tokens);
+                }
+            }
+        }
+        let response = producer.await??;
 
         // 将模型回复和下一次追问追加到账本，下一轮才会“记得”这段对话。
         conversation.add_assistant(&response.content);

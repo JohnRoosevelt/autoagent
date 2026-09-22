@@ -31,7 +31,7 @@
 |---|---:|---|---|
 | ☑ | 01 | LLM API | 用 HTTP POST + JSON 调用 OpenAI-compatible 模型服务。已完成 OpenRouter 真实调用验证、错误分类与离线响应解析测试。 |
 | ☑ | 02 | Message / Token / Context | 建立消息历史模型，理解上下文窗口与 token 预算。 |
-| ☐ | 03 | Streaming / SSE | 解析服务端增量事件，实现流式输出。 |
+| ☑ | 03 | Streaming / SSE | 解析 OpenAI-compatible SSE 增量事件，实时输出文本并在结束后汇总回复与 usage。 |
 | ☐ | 04 | Agent Loop | 用循环、工具结果回填与终止条件驱动多步骤任务。 |
 | ☐ | 05 | Tool / Function Calling | 让模型按 JSON Schema 请求调用宿主程序提供的函数。 |
 | ☐ | 06 | Tool Registry | 建立工具注册表、参数校验与工具分发器。 |
@@ -130,6 +130,15 @@
 - ☑ 为消息转换、对话历史与 usage 解析补充单元测试；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过；
 
+## 第 03 章 Checkpoint
+
+- ☑ 在 OpenAI-compatible 请求中启用 `stream: true` 与 `stream_options.include_usage`；
+- ☑ 按 SSE 事件边界解析 `data:` 字段，正确处理 HTTP 分块与 `[DONE]`；
+- ☑ 将 SSE 协议转换为 `Start`、`TextDelta`、`Done` 领域事件，经 channel 解耦生产与显示；
+- ☑ 每个文本 delta 到达时立即输出，结束后聚合完整回复与 usage；
+- ☑ 为流式请求体、分块 SSE、事件顺序、usage 与缺失 `[DONE]` 补充离线测试；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 03 章 · Streaming / SSE**，解析服务端增量事件并实现流式输出。
+进入 **第 04 章 · Agent Loop**，用循环、工具结果回填与终止条件驱动多步骤任务。

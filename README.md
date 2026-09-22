@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成最小化的 LLM 对话调用与配置加载。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载与 SSE 流式输出。
 
 ## 学习路线
 
@@ -19,6 +19,7 @@
 - 对配置错误、网络错误、不可重试的 `4xx` 错误、可重试的 `408` / `429` / `5xx` 错误进行分类；
 - 使用 `Role`、`Message` 与 `Conversation` 持有 system、user、assistant 消息历史，并将完整历史发送给模型；
 - 解析服务端返回的输入与输出 token 用量，用三轮对话示例观察历史重放带来的输入增长；
+- 通过 SSE 接收 OpenAI-compatible 服务的增量事件，并用 Tokio channel 将 `Start`、文本增量与完成事件交给显示层；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -26,9 +27,9 @@
 ```text
 .
 ├── src/
-│   ├── main.rs          # 程序入口：运行三轮对话并显示 token 用量
+│   ├── main.rs          # 程序入口：运行三轮 SSE 流式对话并显示 token 用量
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
-│   ├── llm.rs           # ChatResponse、Usage 与 LLM 错误类型
+│   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
 │       └── client.rs    # OpenAI-compatible LLM HTTP 客户端
 ├── scripts/
@@ -96,7 +97,7 @@ system: 你是一个简洁、准确的助手。
 user: 我叫小赤。
 ```
 
-每轮都会将完整消息历史发送给模型，打印服务端返回的 `input_tokens`、`output_tokens` 和回答，并将 assistant 回复及下一句追问追加回账本。随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
+每轮都会将完整消息历史以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件，经 Tokio channel 交给入口消费；文本 delta 到达时会立即打印，收到完成事件后打印服务端返回的 `input_tokens` 与 `output_tokens`，并将聚合后的 assistant 回复及下一句追问追加回账本。随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
 
 ## 错误处理约定
 
@@ -109,7 +110,6 @@ user: 我叫小赤。
 
 以下是计划逐步探索的方向，具体实现会随着学习和实践调整：
 
-- 流式响应；
 - 重试、退避与限流处理；
 - 对话历史与上下文管理；
 - Tool Calling / Function Calling；

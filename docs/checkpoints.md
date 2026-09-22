@@ -10,6 +10,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 |---:|---|---|
 | 01 | `chapter-01-llm-api` | LLM API：OpenRouter 调用、错误分类、响应解析与离线测试。 |
 | 02 | `chapter-02-message-context` | Message / Token / Context：对话账本、历史重放、服务端 usage 与三轮 token 演示。 |
+| 03 | `chapter-03-streaming` | Streaming / SSE：增量事件解析、统一事件流、实时文本输出与最终 usage 汇总。 |
 
 ## 查看 Tag
 
@@ -65,7 +66,7 @@ git switch -c chapter-01-practice chapter-01-llm-api
 
 ## 每章完成后的发布流程
 
-以第 02 章为例：
+以第 03 章为例：
 
 ```sh
 # 1. 确认质量检查通过
@@ -76,15 +77,15 @@ cargo test
 
 # 2. 确认路线图已更新为完成状态
 # 3. 提交本章全部相关改动
-git add README.md ROADMAP.md src tests docs
-git commit -m "Complete chapter 02: Message and Context"
+git add README.md ROADMAP.md src docs
+git commit -m "Complete chapter 03: Streaming and SSE"
 
 # 4. 创建带说明的 annotated tag
-git tag -a chapter-02-message-context -m "Chapter 02: Message and Context checkpoint"
+git tag -a chapter-03-streaming -m "Chapter 03: Streaming and SSE checkpoint"
 
 # 5. 推送提交与 tag
 git push origin master
-git push origin chapter-02-message-context
+git push origin chapter-03-streaming
 ```
 
 ## 命名约定
