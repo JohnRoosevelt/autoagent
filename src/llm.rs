@@ -43,3 +43,6 @@ impl LlmError {
         matches!(self, LlmError::Network(_) | LlmError::Server { .. })
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -68,16 +68,20 @@ impl LlmClient {
             return Err(LlmError::from_http(status.as_u16(), text));
         }
 
-        // ? 依赖 From 自动转换：serde_json 的解析错误在这里被转成 LlmError::Other 再向上传播
-        let value: Value = serde_json::from_str(&text)
-            .map_err(|e| LlmError::Other(format!("响应不是合法 JSON: {e}")))?;
-        // choices[0].message.content —— OpenAI 协议的固定取值路径
-        // Value 实现了 Index：像 JS 一样链式索引，取不到的键返回 Value::Null 而不 panic
-        // as_str 把 Value 转成 Option<&str>；ok_or_else 把 Option 变 Result（None 时才执行
-        // 闭包构造错误）；{text} 是 format! 的内联捕获，等价于 "…{}", text
-        value["choices"][0]["message"]["content"]
-            .as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| LlmError::Other(format!("响应结构不符合预期: {text}")))
+        parse_chat_response(&text)
     }
 }
+
+fn parse_chat_response(text: &str) -> Result<String, LlmError> {
+    let value: Value = serde_json::from_str(text)
+        .map_err(|e| LlmError::Other(format!("响应不是合法 JSON: {e}")))?;
+
+    value["choices"][0]["message"]["content"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| LlmError::Other(format!("响应结构不符合预期: {text}")))
+}
+
+#[cfg(test)]
+#[path = "client_tests.rs"]
+mod tests;

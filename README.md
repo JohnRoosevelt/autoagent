@@ -6,6 +6,10 @@
 
 > 当前仍处于早期阶段：已经完成最小化的 LLM 对话调用与配置加载。
 
+## 学习路线
+
+项目按文章的 `00–39` 章节顺序推进。每章的实现由 `autoagent` 自己完成，章节状态和验收条件维护在 [ROADMAP.md](ROADMAP.md)。
+
 ## 当前能力
 
 - 使用 `reqwest` 向兼容 OpenAI Chat Completions 协议的服务发起请求；
@@ -27,6 +31,7 @@
 ├── scripts/
 │   └── run.sh           # 加载 .env 并启动项目
 ├── .env.example         # 环境变量模板
+├── ROADMAP.md           # 与学习文章同步的章节计划与完成状态
 └── Cargo.toml
 ```
 
