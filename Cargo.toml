@@ -1,0 +1,18 @@
+[package]
+name = "autoagent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }                # 异步运行时
+reqwest = { version = "0.12", default-features = false,
+           features = ["json", "stream", "rustls-tls"] }     # HTTP 客户端
+serde = { version = "1", features = ["derive"] }             # 序列化框架
+serde_json = "1"                                             # JSON 值与 json! 宏
+anyhow = "1"                                                 # 应用级错误
+thiserror = "2"                                             # 库级错误定义
+futures = "0.3"                                             # 异步工具
+
+
+# 为什么用 rustls-tls 而不是默认的 native-tls？默认走系统 OpenSSL，Windows 和精简 Linux 上经常缺动态库，编译就报错。
+#  rustls 是纯 Rust 实现 TLS，任何平台无脑可编译。
