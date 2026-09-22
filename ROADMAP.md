@@ -30,7 +30,7 @@
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
 | ☑ | 01 | LLM API | 用 HTTP POST + JSON 调用 OpenAI-compatible 模型服务。已完成 OpenRouter 真实调用验证、错误分类与离线响应解析测试。 |
-| ☐ | 02 | Message / Token / Context | 建立消息历史模型，理解上下文窗口与 token 预算。 |
+| ☑ | 02 | Message / Token / Context | 建立消息历史模型，理解上下文窗口与 token 预算。 |
 | ☐ | 03 | Streaming / SSE | 解析服务端增量事件，实现流式输出。 |
 | ☐ | 04 | Agent Loop | 用循环、工具结果回填与终止条件驱动多步骤任务。 |
 | ☐ | 05 | Tool / Function Calling | 让模型按 JSON Schema 请求调用宿主程序提供的函数。 |
@@ -120,12 +120,16 @@
 - ☑ 为错误分类与响应解析补充不依赖真实 API 的测试；
 - ☑ `cargo fmt --check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过；
 
+## 第 02 章 Checkpoint
+
+- ☑ 定义 `Role` 与 `Message`，用于表示 system、user、assistant 三类消息；
+- ☑ 建立 `Conversation`，统一持有并追加消息历史；
+- ☑ 将当前的一次性 `chat_raw(&str)` 调整为接收消息列表；
+- ☑ 以离线请求体测试完成两轮对话验证，确认第二轮请求包含第一轮上下文；
+- ☑ 解析服务端 usage，并以三轮示例展示完整历史重放导致的输入 token 增长；
+- ☑ 为消息转换、对话历史与 usage 解析补充单元测试；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过；
+
 ## 当前下一步
 
-进入 **第 02 章 · Message / Token / Context**。本章先完成以下最小目标：
-
-- [ ] 定义 `Role` 与 `Message`，用于表示 system、user、assistant 三类消息；
-- [ ] 建立 `Conversation`，统一持有并追加消息历史；
-- [ ] 将当前的一次性 `chat_raw(&str)` 调整为接收消息列表；
-- [ ] 完成一次两轮对话验证，确认第二轮请求包含第一轮上下文；
-- [ ] 为消息转换与对话历史补充单元测试。
+进入 **第 03 章 · Streaming / SSE**，解析服务端增量事件并实现流式输出。

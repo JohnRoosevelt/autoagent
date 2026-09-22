@@ -8,7 +8,7 @@
 
 ## 学习路线
 
-项目按文章的 `00–39` 章节顺序推进。每章的实现由 `autoagent` 自己完成，章节状态和验收条件维护在 [ROADMAP.md](ROADMAP.md)。
+项目按文章的 `00–39` 章节顺序推进。每章的实现由 `autoagent` 自己完成，章节状态和验收条件维护在 [ROADMAP.md](ROADMAP.md)。每章完成后的 Git checkpoint 与 Tag 使用方式见 [docs/checkpoints.md](docs/checkpoints.md)。
 
 ## 当前能力
 
@@ -17,6 +17,8 @@
 - 默认模型为 `openrouter/free`，由 OpenRouter 从可用免费模型中路由；
 - 通过环境变量配置模型服务、API Key 与模型名称；
 - 对配置错误、网络错误、不可重试的 `4xx` 错误、可重试的 `408` / `429` / `5xx` 错误进行分类；
+- 使用 `Role`、`Message` 与 `Conversation` 持有 system、user、assistant 消息历史，并将完整历史发送给模型；
+- 解析服务端返回的输入与输出 token 用量，用三轮对话示例观察历史重放带来的输入增长；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -24,13 +26,16 @@
 ```text
 .
 ├── src/
-│   ├── main.rs          # 程序入口：创建客户端并发起一次示例对话
-│   ├── llm.rs           # LLM 错误类型与重试判断
+│   ├── main.rs          # 程序入口：运行三轮对话并显示 token 用量
+│   ├── message.rs       # Role、Message 与 Conversation 对话账本
+│   ├── llm.rs           # ChatResponse、Usage 与 LLM 错误类型
 │   └── llm/
 │       └── client.rs    # OpenAI-compatible LLM HTTP 客户端
 ├── scripts/
 │   └── run.sh           # 加载 .env 并启动项目
 ├── .env.example         # 环境变量模板
+├── docs/
+│   └── checkpoints.md   # 章节 checkpoint 与 Git Tag 使用说明
 ├── ROADMAP.md           # 与学习文章同步的章节计划与完成状态
 └── Cargo.toml
 ```
@@ -84,13 +89,14 @@ cargo run
 
 ## 当前示例
 
-当前入口会向模型发送：
+当前入口会创建一段包含 system 与 user 消息的会话，并连续请求三轮：
 
 ```text
-用一句话解释什么是 HTTP
+system: 你是一个简洁、准确的助手。
+user: 我叫小赤。
 ```
 
-然后输出所使用的模型名和模型响应。
+每轮都会将完整消息历史发送给模型，打印服务端返回的 `input_tokens`、`output_tokens` 和回答，并将 assistant 回复及下一句追问追加回账本。随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
 
 ## 错误处理约定
 

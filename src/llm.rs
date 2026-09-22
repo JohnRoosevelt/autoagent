@@ -1,5 +1,21 @@
 pub mod client;
 
+/// 一次模型调用的 token 计量。
+///
+/// 字段名称使用 input/output，避免把 OpenAI 的 prompt/completion 术语带入内部类型。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub input_tokens: usize,
+    pub output_tokens: usize,
+}
+
+/// 当前这轮模型调用的文本回复与服务端计量。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChatResponse {
+    pub content: String,
+    pub usage: Usage,
+}
+
 /// LLM 调用错误的分类。
 /// 为什么不直接用 anyhow？因为"能不能重试"取决于"错在哪一层"，
 /// 网络抖动值得重试，API key 写错重试一万次也没用。

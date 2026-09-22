@@ -1,5 +1,8 @@
-use crate::llm::LlmError;
-use serde_json::{Value, json};
+use crate::{
+    llm::{ChatResponse, LlmError, Usage},
+    message::Message,
+};
+use serde_json::Value;
 
 // 派生宏：为结构体自动生成 Clone 实现（对本类型来说 clone 很廉价，见下面 http 字段的说明）
 #[derive(Clone)]
@@ -35,16 +38,10 @@ impl LlmClient {
         })
     }
 
-    /// 最朴素也最诚实的版本：手拼请求 JSON，POST，按固定路径取结果。
+    /// 将完整对话历史发送给模型；调用方负责在每轮结束后把回复追加回会话。
     // async fn：异步函数，调用后返回一个 Future，要 .await 才真正执行到完成
-    pub async fn chat_raw(&self, user_message: &str) -> Result<String, LlmError> {
-        // json! 宏：用类 JSON 字面量直接构造 serde_json::Value，位置上可插任意表达式
-        let body = json!({
-          "model": self.model,
-          "messages": [
-            { "role": "user", "content": user_message }
-          ]
-        });
+    pub async fn chat(&self, messages: &[Message]) -> Result<ChatResponse, LlmError> {
+        let body = chat_request_body(&self.model, messages);
 
         // .await 等待异步操作完成；? 在 Err 时提前返回，并经 From 把错误转换成 anyhow::Error
         let resp = self
@@ -72,14 +69,35 @@ impl LlmClient {
     }
 }
 
-fn parse_chat_response(text: &str) -> Result<String, LlmError> {
+fn chat_request_body(model: &str, messages: &[Message]) -> Value {
+    serde_json::json!({
+        "model": model,
+        "messages": messages,
+    })
+}
+
+fn parse_chat_response(text: &str) -> Result<ChatResponse, LlmError> {
     let value: Value = serde_json::from_str(text)
         .map_err(|e| LlmError::Other(format!("响应不是合法 JSON: {e}")))?;
 
-    value["choices"][0]["message"]["content"]
+    let content = value["choices"][0]["message"]["content"]
         .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| LlmError::Other(format!("响应结构不符合预期: {text}")))
+        .map(str::to_owned)
+        .ok_or_else(|| LlmError::Other(format!("响应结构不符合预期: {text}")))?;
+
+    let usage = Usage {
+        input_tokens: parse_token_count(&value, "prompt_tokens", text)?,
+        output_tokens: parse_token_count(&value, "completion_tokens", text)?,
+    };
+
+    Ok(ChatResponse { content, usage })
+}
+
+fn parse_token_count(value: &Value, field: &str, text: &str) -> Result<usize, LlmError> {
+    value["usage"][field]
+        .as_u64()
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| LlmError::Other(format!("响应缺少 usage.{field}: {text}")))
 }
 
 #[cfg(test)]
