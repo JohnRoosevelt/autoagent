@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载与 SSE 流式输出。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出与最小 Agent Loop。
 
 ## 学习路线
 
@@ -20,6 +20,8 @@
 - 使用 `Role`、`Message` 与 `Conversation` 持有 system、user、assistant 消息历史，并将完整历史发送给模型；
 - 解析服务端返回的输入与输出 token 用量，用三轮对话示例观察历史重放带来的输入增长；
 - 通过 SSE 接收 OpenAI-compatible 服务的增量事件，并用 Tokio channel 将 `Start`、文本增量与完成事件交给显示层；
+- 由 `Agent` 管理会话、待处理输入与执行步数，在内部循环调用模型、转发流事件并回填 assistant 回复；
+- 以“没有待处理输入”或“达到最大步数”明确结束 Agent 运行，防止未来工具分支出现无限循环；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -27,7 +29,8 @@
 ```text
 .
 ├── src/
-│   ├── main.rs          # 程序入口：运行三轮 SSE 流式对话并显示 token 用量
+│   ├── main.rs          # 程序入口：配置演示输入并显示 Agent 转发的流事件
+│   ├── agent.rs         # Agent Loop：会话状态、步数保护、流事件转发与回复回填
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -90,18 +93,19 @@ cargo run
 
 ## 当前示例
 
-当前入口会创建一段包含 system 与 user 消息的会话，并连续请求三轮：
+当前入口会创建一段包含 system 消息的会话，并向 `Agent` 排入三条用户输入：
 
 ```text
 system: 你是一个简洁、准确的助手。
 user: 我叫小赤。
 ```
 
-每轮都会将完整消息历史以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件，经 Tokio channel 交给入口消费；文本 delta 到达时会立即打印，收到完成事件后打印服务端返回的 `input_tokens` 与 `output_tokens`，并将聚合后的 assistant 回复及下一句追问追加回账本。随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
+`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；Agent 消费后经 Tokio channel 原样转发给入口显示。收到完成事件后会显示服务端返回的 `input_tokens` 与 `output_tokens`，Agent 再将聚合后的 assistant 回复写回账本。所有输入完成或达到最大步数后，循环明确结束；随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
 
 ## 错误处理约定
 
 - `main.rs` 使用 `anyhow::Result` 作为应用入口的统一错误出口；
+- `agent` 模块用 `AgentError` 区分配置、模型、模型任务与事件接收方错误；
 - `llm` 模块使用 `thiserror` 定义 `LlmError`，让调用方可以依据错误类型决定是否重试；
 - `408`、`429` 与 `5xx` 被视为可重试的 HTTP 错误；
 - 缺失或为空的 `AGENT_API_KEY` 会被识别为配置错误，并在发起网络请求前返回。

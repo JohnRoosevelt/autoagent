@@ -12,6 +12,8 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 02 | `chapter-02-message-context` | Message / Token / Context：对话账本、历史重放、服务端 usage 与三轮 token 演示。 |
 | 03 | `chapter-03-streaming` | Streaming / SSE：增量事件解析、统一事件流、实时文本输出与最终 usage 汇总。 |
 
+第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
+
 ## 查看 Tag
 
 列出所有章节 checkpoint：
@@ -66,7 +68,7 @@ git switch -c chapter-01-practice chapter-01-llm-api
 
 ## 每章完成后的发布流程
 
-以第 03 章为例：
+以第 04 章为例：
 
 ```sh
 # 1. 确认质量检查通过
@@ -78,14 +80,14 @@ cargo test
 # 2. 确认路线图已更新为完成状态
 # 3. 提交本章全部相关改动
 git add README.md ROADMAP.md src docs
-git commit -m "Complete chapter 03: Streaming and SSE"
+git commit -m "Complete chapter 04: Agent Loop"
 
 # 4. 创建带说明的 annotated tag
-git tag -a chapter-03-streaming -m "Chapter 03: Streaming and SSE checkpoint"
+git tag -a chapter-04-agent-loop -m "Chapter 04: Agent Loop checkpoint"
 
 # 5. 推送提交与 tag
 git push origin master
-git push origin chapter-03-streaming
+git push origin chapter-04-agent-loop
 ```
 
 ## 命名约定

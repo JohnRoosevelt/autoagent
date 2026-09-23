@@ -32,7 +32,7 @@
 | ☑ | 01 | LLM API | 用 HTTP POST + JSON 调用 OpenAI-compatible 模型服务。已完成 OpenRouter 真实调用验证、错误分类与离线响应解析测试。 |
 | ☑ | 02 | Message / Token / Context | 建立消息历史模型，理解上下文窗口与 token 预算。 |
 | ☑ | 03 | Streaming / SSE | 解析 OpenAI-compatible SSE 增量事件，实时输出文本并在结束后汇总回复与 usage。 |
-| ☐ | 04 | Agent Loop | 用循环、工具结果回填与终止条件驱动多步骤任务。 |
+| ☑ | 04 | Agent Loop | 以独立 Agent 管理会话、状态与流式调用循环；通过待处理输入和最大步数保护明确结束运行，并为后续工具结果回填预留分支。 |
 | ☐ | 05 | Tool / Function Calling | 让模型按 JSON Schema 请求调用宿主程序提供的函数。 |
 | ☐ | 06 | Tool Registry | 建立工具注册表、参数校验与工具分发器。 |
 | ☐ | 07 | Retry / Cancel | 处理超时、限流、重试，以及 Ctrl+C 取消和资源清理。 |
@@ -139,6 +139,15 @@
 - ☑ 为流式请求体、分块 SSE、事件顺序、usage 与缺失 `[DONE]` 补充离线测试；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 04 章 Checkpoint
+
+- ☑ 提取独立 `Agent`，由其管理 Conversation、待处理输入、执行步数与生命周期状态；
+- ☑ 在 Agent 内部完成“调用模型 → 消费/转发 `StreamEvent` → 回填 assistant 回复 → 判断是否继续”的循环；
+- ☑ 将“无待处理输入”和“达到最大步数”建模为明确、可观察的终止原因，并拒绝 `max_steps = 0`；
+- ☑ 使用离线假模型测试事件转发、状态转移、消息历史更新、正常结束与最大步数保护；
+- ☑ 保持 SSE 解析在 LLM 客户端，未提前引入 tool calls、JSON Schema、Tool Registry 或工具执行；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 04 章 · Agent Loop**，用循环、工具结果回填与终止条件驱动多步骤任务。
+进入 **第 05 章 · Tool / Function Calling**，让模型表达工具请求，并在 Agent 回填 assistant 回复后增加“执行工具 → 写入 tool result → 继续”的分支。

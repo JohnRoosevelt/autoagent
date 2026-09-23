@@ -1,4 +1,5 @@
 use crate::{
+    agent::StreamChatModel,
     llm::{ChatResponse, LlmError, StreamEvent, Usage},
     message::Message,
 };
@@ -116,6 +117,17 @@ impl LlmClient {
         }
         send_stream_event(&tx, StreamEvent::Done(response.clone())).await?;
         Ok(response)
+    }
+}
+
+impl StreamChatModel for LlmClient {
+    #[allow(clippy::manual_async_fn)]
+    fn chat_stream(
+        &self,
+        messages: &[Message],
+        tx: tokio::sync::mpsc::Sender<StreamEvent>,
+    ) -> impl std::future::Future<Output = Result<ChatResponse, LlmError>> + Send {
+        async move { LlmClient::chat_stream(self, messages, tx).await }
     }
 }
 
