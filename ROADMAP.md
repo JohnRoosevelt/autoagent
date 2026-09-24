@@ -109,9 +109,15 @@
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
 | ☑ | 38 | 最终架构 | 在 `docs/architecture.md` 固化运行链路、稳定模块边界、依赖方向与扩展准则；不为文档重复引入新 facade。 |
-| ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
+| ☑ | 39 | 成熟项目对照 | 在 `docs/mature-project-comparison.md` 依据链接的一手文档，对照 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code 与 Pi 的设计重点，并明确区分事实与推论。 |
 
 ---
+
+## 第 39 章 Checkpoint
+
+- ☑ 新增 `docs/mature-project-comparison.md`，以版本/时间明确的 primary sources 对照成熟设计的公开重点；
+- ☑ 将对 AutoAgent 的启示明确标为架构推论，不声称功能、安全性或生产能力等价；
+- ☑ 完整 Rust 质量门禁通过。
 
 ## 第 38 章 Checkpoint
 

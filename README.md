@@ -1,8 +1,9 @@
 # AutoAgent
 
-A small Rust learning project that builds an OpenAI-compatible, tool-using agent from explicit local components. It follows the chapter order of a related Agent tutorial series, but the implementation, API, and scope are AutoAgent’s own. **All chapters 00–38 are complete.**
+A small Rust learning project that builds an OpenAI-compatible, tool-using agent from explicit local components. It follows the chapter order of a related Agent tutorial series, but the implementation, API, and scope are AutoAgent’s own. **All chapters 00–39 are complete.**
 
 - Architecture: [docs/architecture.md](docs/architecture.md)
+- Mature-design comparison: [docs/mature-project-comparison.md](docs/mature-project-comparison.md)
 - Roadmap and acceptance checkpoints: [ROADMAP.md](ROADMAP.md)
 - Tagged chapter checkpoints: [docs/checkpoints.md](docs/checkpoints.md)
 
@@ -110,17 +111,17 @@ cargo test
 
 ## Chapter status and checkpoints
 
-The implementation is organized as a 00–39 learning path. Chapter 38 records the final architecture and stable boundaries; Chapter 39 compares those boundaries with mature designs using documented, cautious claims. See [ROADMAP.md](ROADMAP.md) for each chapter’s scope and [docs/checkpoints.md](docs/checkpoints.md) to inspect or branch from tagged snapshots.
+The 00–39 learning path is complete. Chapter 38 records the final architecture and stable boundaries; Chapter 39 compares those boundaries with mature designs using linked primary sources and clearly labeled inferences. See [ROADMAP.md](ROADMAP.md) for each chapter’s scope and [docs/checkpoints.md](docs/checkpoints.md) to inspect or branch from tagged snapshots.
 
 ```sh
 # List completed chapter snapshots
 git tag --list 'chapter-*'
 
 # Inspect one snapshot
-git show chapter-38-final-architecture
+git show chapter-39-mature-project-comparison
 
 # Experiment from a snapshot without changing it
-git switch -c my-experiment chapter-38-final-architecture
+git switch -c my-experiment chapter-39-mature-project-comparison
 ```
 
 Tags are immutable learning checkpoints. Avoid committing directly from a detached tag checkout; create a branch first.
