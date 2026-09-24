@@ -44,7 +44,7 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 09 | Context Manager | 在上下文接近上限时，按规则裁剪、压缩或保留关键内容。 |
+| ☑ | 09 | Context Manager | 在模型调用边界按消息预算裁剪请求历史，保留 system 与完整 tool-call 交换。 |
 | ☐ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
 | ☐ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
 | ☐ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
@@ -185,6 +185,14 @@
 - ☑ 未引入全局 event bus、持久化事件日志、订阅过滤、跨进程传递或 observability 后端；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 09 章 Checkpoint
+
+- ☑ 新增最小 `ContextManager`，在每次模型调用边界按可配置的消息数量预算生成请求历史，不修改完整会话账本；
+- ☑ system 消息始终保留；assistant `tool_calls` 与紧随的 tool 结果只能整体保留或移除，避免向模型发送无对应调用的 tool 结果；
+- ☑ 默认不限制历史；可用 `Agent::with_history_message_budget` 配置预算，并用 `AgentEvent::ContextTrimmed` 公开每次请求裁剪的消息数；
+- ☑ 不实现摘要、额外模型调用、token 精确计数、向量数据库或长期记忆；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 09 章 · Context Manager**，在稳定的 Agent 生命周期边界之上管理上下文窗口。
+进入 **第 10 章 · Session / Resume**，持久化历史、状态和执行记录以支持恢复会话。

@@ -15,12 +15,20 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 06 | `chapter-06-tool-registry` | Tool Registry：本地工具注册、最小参数校验、串行分发、`role: tool` 结果回填与继续 Agent Loop。 |
 | 07 | `chapter-07-retry-cancel` | Retry / Cancel：有限确定性 retry/backoff 与应用内协作式取消。 |
 | 08 | `chapter-08-event-lifecycle` | Event / Lifecycle：以最小 `AgentEvent` 统一 Agent 生命周期与已解析模型流。 |
+| 09 | `chapter-09-context-manager` | Context Manager：按消息预算裁剪模型请求并保持工具交换原子性。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
 第 06 章的 Registry 仅在程序启动时组装编译进二进制的 Rust 工具；它不是动态库、WASM、目录发现、热加载或 Plugin Manager。更进一步的动态扩展留待第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP。
 
 第 07 章已发布为 `chapter-07-retry-cancel`，第 08 章已发布为 `chapter-08-event-lifecycle`。第 08 章不包含全局 event bus、持久化事件日志、订阅过滤、跨进程事件传递或 observability 后端。
+
+## 第 09 章 Checkpoint（已发布为 `chapter-09-context-manager`）
+
+- ☑ 在模型调用边界按可配置消息预算裁剪请求历史，账本保持完整；
+- ☑ system 消息优先保留，assistant `tool_calls` 与连续 tool 结果作为不可分割单元；
+- ☑ 以 `AgentEvent::ContextTrimmed` 暴露每次裁剪数量；
+- ☑ 不包含摘要、额外模型调用、token 精确计数或向量数据库。
 
 ## 查看 Tag
 

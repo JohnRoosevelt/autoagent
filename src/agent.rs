@@ -1,4 +1,5 @@
 use crate::{
+    context::ContextManager,
     llm::{ChatResponse, LlmError, StreamEvent, ToolDefinition},
     message::{Conversation, Message},
     tool::{ToolError, ToolRegistry},
@@ -123,6 +124,7 @@ pub enum AgentEvent {
     AssistantRecorded { response: ChatResponse },
     ToolStarted { call_id: String, name: String },
     ToolFinished { call_id: String, name: String },
+    ContextTrimmed { removed_messages: usize },
     Cancelled,
     Finished(RunReport),
     Failed { error: String },
@@ -169,6 +171,7 @@ pub struct Agent<M> {
     max_steps: usize,
     steps_taken: usize,
     retry_policy: RetryPolicy,
+    context_manager: ContextManager,
     state: AgentState,
 }
 
@@ -185,6 +188,7 @@ impl<M: StreamChatModel> Agent<M> {
             max_steps,
             steps_taken: 0,
             retry_policy: RetryPolicy::default(),
+            context_manager: ContextManager::new(usize::MAX),
             state: AgentState::Ready,
         })
     }
@@ -197,6 +201,13 @@ impl<M: StreamChatModel> Agent<M> {
 
     pub fn with_retry_policy(mut self, retry_policy: RetryPolicy) -> Self {
         self.retry_policy = retry_policy;
+        self
+    }
+
+    /// Limits messages sent to the model at each request boundary. System messages are
+    /// always retained, and tool-call exchanges are never split.
+    pub fn with_history_message_budget(mut self, max_messages: usize) -> Self {
+        self.context_manager = ContextManager::new(max_messages);
         self
     }
 
@@ -394,7 +405,7 @@ impl<M: StreamChatModel> Agent<M> {
     }
 
     async fn call_model_with_retry(
-        &self,
+        &mut self,
         events: &mpsc::Sender<AgentEvent>,
         cancellation: &CancellationToken,
         model_attempts: &mut usize,
@@ -446,11 +457,22 @@ impl<M: StreamChatModel> Agent<M> {
     }
 
     async fn call_model_once(
-        &self,
+        &mut self,
         events: &mpsc::Sender<AgentEvent>,
         cancellation: &CancellationToken,
     ) -> Result<ChatResponse, ModelCallOutcome> {
-        let history = self.conversation.messages().to_vec();
+        let context = self.context_manager.window(self.conversation.messages());
+        if context.removed_messages > 0 {
+            self.send_event(
+                events,
+                AgentEvent::ContextTrimmed {
+                    removed_messages: context.removed_messages,
+                },
+                cancellation,
+            )
+            .await?;
+        }
+        let history = context.messages;
         let definitions = self.tools.definitions();
         let (model_events, mut model_rx) = mpsc::channel(32);
         let producer = tokio::spawn({

@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发，以及最小 Agent 生命周期事件。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪。
 
 ## 学习路线
 
@@ -27,6 +27,7 @@
 - 通过启动时组装的本地 `ToolRegistry` 注册、查找并串行分发编译进程序的 Rust 工具，拒绝重复工具名；
 - 工具调用 arguments 在执行前解析为 JSON，并由工具完成最小字段校验；成功或失败结果均作为关联 `tool_call_id` 的 `role: tool` 消息回填，随后继续 Agent Loop；
 - 以“没有待处理输入”或“达到最大模型调用步数”明确结束 Agent 运行；工具执行本身不额外计步。
+- 可通过 `Agent::with_history_message_budget` 在每个模型调用边界限制发送历史消息数；system 消息始终保留，assistant `tool_calls` 与紧随的 tool 结果作为不可分割单元裁剪，并以 `AgentEvent::ContextTrimmed` 公开裁剪数量。
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -35,7 +36,8 @@
 .
 ├── src/
 │   ├── main.rs          # 程序入口：配置演示输入并显示 Agent 生命周期与模型流事件
-│   ├── agent.rs         # Agent Loop：会话状态、生命周期事件、重试/取消、模型流转发与回复回填
+│   ├── agent.rs         # Agent Loop：会话状态、生命周期事件、重试/取消、上下文边界、模型流转发与回复回填
+│   ├── context.rs       # Context Manager：按消息预算生成协议安全的模型请求历史
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
@@ -106,7 +108,7 @@ system: 你是一个简洁、准确的助手。
 user: 请查询北京现在的天气。请调用 get_weather，不要猜测结果。
 ```
 
-`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和 Registry 导出的工具定义以 SSE 请求发送给模型。客户端把协议细节转换为 `StreamEvent::Start`、`TextDelta`、`Done`；Agent 以 `AgentEvent::Model` 包装这些模型流，而额外发出 started、input、attempt、retry、assistant recorded、tool start/finish 和终止生命周期事件。文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 将 assistant `tool_calls` 完整写回账本，经 Registry 按顺序执行工具，并将固定模拟天气结果（或清晰 JSON 错误）以 `role: tool` 与对应 `tool_call_id` 回填，继续请求模型生成最终回复。模型出现网络、408、429 或 5xx 失败时，Agent 会发出 `AgentEvent::Retry` 并重新发起该轮请求；只有收到完整成功的 `ChatResponse` 才入账。入口最后会显示成功回合、实际尝试和重试次数。
+`Agent` 在每一步才将下一条用户输入写入账本，并在每个模型调用边界按配置的消息预算生成请求历史；默认不限制。system 消息始终保留，assistant 工具调用及紧随的 tool 结果只会整体保留或整体移除，因此不会发送孤立的工具结果。账本本身不会被裁剪。Agent 再将请求历史和 Registry 导出的工具定义以 SSE 请求发送给模型。客户端把协议细节转换为 `StreamEvent::Start`、`TextDelta`、`Done`；Agent 以 `AgentEvent::Model` 包装这些模型流，而额外发出 started、input、attempt、retry、assistant recorded、tool start/finish 和终止生命周期事件。文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 将 assistant `tool_calls` 完整写回账本，经 Registry 按顺序执行工具，并将固定模拟天气结果（或清晰 JSON 错误）以 `role: tool` 与对应 `tool_call_id` 回填，继续请求模型生成最终回复。模型出现网络、408、429 或 5xx 失败时，Agent 会发出 `AgentEvent::Retry` 并重新发起该轮请求；只有收到完整成功的 `ChatResponse` 才入账。入口最后会显示成功回合、实际尝试和重试次数。
 
 本章的 Registry 只是在程序启动时组装编译进二进制的本地 Rust 工具，不是动态库、WASM、目录扫描、热加载或 Plugin Manager。更进一步的动态扩展将分别在第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP 探索。
 
@@ -130,9 +132,9 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
 
-## 第 08 章范围
+## 第 09 章范围
 
-本章定义最小 `AgentEvent` 生命周期输出：started、input、attempt、retry、assistant recorded、tool start/finish、cancelled、finished 与 failed。`StreamEvent` 只保留 LLM 流的 `Start`、`TextDelta` 与 `Done`，并由 `AgentEvent::Model` 包装转发。未实现全局 event bus、持久化事件日志、订阅过滤、跨进程传递或 observability 后端。
+本章提供最小 `ContextManager`：在 Agent 的每次模型调用前按可配置的消息数量预算裁剪请求视图，不修改完整会话账本。system 消息优先保留；assistant `tool_calls` 和它们紧随的 tool 结果以完整单元保留或移除，避免破坏 OpenAI-compatible 协议。发生裁剪时会发出 `AgentEvent::ContextTrimmed { removed_messages }`。本章不实现摘要、额外模型调用、token 精确计数、向量数据库、长期记忆或持久化会话。
 
 ## 开发检查
 

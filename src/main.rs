@@ -1,4 +1,5 @@
 mod agent;
+mod context;
 mod llm;
 mod message;
 mod tool;
@@ -22,7 +23,8 @@ async fn main() -> anyhow::Result<()> {
     tools.register(GetWeatherTool)?;
     let mut agent = Agent::new(client, conversation, 3)?
         .with_tool_registry(tools)
-        .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)));
+        .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)))
+        .with_history_message_budget(32);
     agent.enqueue_user("请查询北京现在的天气。请调用 get_weather，不要猜测结果。");
 
     let (tx, mut rx) = mpsc::channel(32);
@@ -55,6 +57,9 @@ async fn main() -> anyhow::Result<()> {
                 AgentEvent::ToolStarted { call_id, name } => println!("开始工具 {call_id}: {name}"),
                 AgentEvent::ToolFinished { call_id, name } => {
                     println!("完成工具 {call_id}: {name}")
+                }
+                AgentEvent::ContextTrimmed { removed_messages } => {
+                    println!("模型请求前裁剪了 {removed_messages} 条历史消息")
                 }
                 AgentEvent::Cancelled => println!("Agent 已取消。"),
                 AgentEvent::Finished(_) => println!("Agent 已完成。"),

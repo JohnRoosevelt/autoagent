@@ -524,6 +524,62 @@ async fn returns_tool_failures_to_the_model_and_continues() {
 }
 
 #[tokio::test]
+async fn context_budget_trims_model_requests_without_mutating_the_conversation() {
+    let mut conversation = Conversation::new();
+    conversation.add_system("instructions");
+    conversation.add_user("old question");
+    conversation.add_assistant("old answer");
+    let model = FakeModel::new(vec![Outcome::Reply(text("new answer"))]);
+    let mut agent = Agent::new(model.clone(), conversation, 2)
+        .unwrap()
+        .with_history_message_budget(3);
+    agent.enqueue_user("new question");
+    let (tx, mut rx) = mpsc::channel(64);
+
+    agent.run(tx).await.unwrap();
+
+    assert_eq!(
+        model.requests(),
+        vec![vec![
+            Message::system("instructions"),
+            Message::assistant("old answer"),
+            Message::user("new question"),
+        ]]
+    );
+    assert_eq!(agent.conversation().messages().len(), 5);
+    let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+    assert!(events.contains(&AgentEvent::ContextTrimmed {
+        removed_messages: 1,
+    }));
+}
+
+#[tokio::test]
+async fn context_budget_never_sends_orphaned_tool_results() {
+    let old_call = tool_call("old_call", "get_weather", r#"{"city":"北京"}"#);
+    let mut conversation = Conversation::new();
+    conversation.add_system("instructions");
+    conversation.add_user("old question");
+    conversation.add_assistant_response(String::new(), vec![old_call.clone()]);
+    conversation.add_tool("old_call", "old result");
+    let model = FakeModel::new(vec![Outcome::Reply(text("new answer"))]);
+    let mut agent = Agent::new(model.clone(), conversation, 2)
+        .unwrap()
+        .with_history_message_budget(3);
+    agent.enqueue_user("new question");
+    let (tx, _rx) = mpsc::channel(64);
+
+    agent.run(tx).await.unwrap();
+
+    assert_eq!(
+        model.requests(),
+        vec![vec![
+            Message::system("instructions"),
+            Message::user("new question")
+        ]]
+    );
+}
+
+#[tokio::test]
 async fn max_steps_counts_completed_model_turns_but_still_records_tool_results() {
     let mut agent = Agent::new(
         FakeModel::new(vec![Outcome::Reply(calls(vec![tool_call(
