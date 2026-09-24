@@ -19,6 +19,8 @@ mod permission;
 #[allow(dead_code)]
 mod plugins;
 #[allow(dead_code)]
+mod sandbox;
+#[allow(dead_code)]
 mod session;
 mod shell;
 #[allow(dead_code)]
