@@ -21,6 +21,8 @@ mod middleware;
 #[allow(dead_code)]
 mod model_router;
 #[allow(dead_code)]
+mod observability;
+#[allow(dead_code)]
 mod permission;
 #[allow(dead_code)]
 mod plugins;
