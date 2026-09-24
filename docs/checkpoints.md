@@ -22,6 +22,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 13 | `chapter-13-command-tui` | Command / TUI：最小 CLI/slash command 入口。 |
 | 14 | `chapter-14-skills` | Skills：root-confined 的按需 Markdown 定义加载。 |
 | 15 | `chapter-15-subagent` | Subagent：显式 task/context 边界的同步 child wrapper。 |
+| 16 | `chapter-16-memory` | Memory：root-confined 的显式分级 Markdown 注入。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -68,6 +69,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 子 Agent 仅接收显式任务和复制的上下文；
 - ☑ 使用确定性 test double；不含并发、调度或 parent state 共享。
+
+## 第 16 章 Checkpoint（已发布为 `chapter-16-memory`）
+
+- ☑ 按调用者选定顺序读取受限根目录内的 Markdown memories；
+- ☑ 不使用数据库、embedding 或自动检索。
 
 ## 查看 Tag
 

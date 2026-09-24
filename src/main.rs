@@ -3,6 +3,8 @@ mod command;
 mod context;
 mod filesystem;
 mod llm;
+#[allow(dead_code)]
+mod memory;
 mod message;
 #[allow(dead_code)]
 mod session;

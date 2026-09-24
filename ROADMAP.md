@@ -58,7 +58,7 @@
 |---|---:|---|---|
 | ☑ | 14 | Skills | 用受根目录约束、按名称按需加载的 Markdown 说明沉淀任务知识和工作流程。 |
 | ☑ | 15 | Subagent | 将具有显式任务与复制上下文边界的子 Agent 包装为同步委托。 |
-| ☐ | 16 | Memory | 建立分级的长期记忆文件，并在合适时注入上下文。 |
+| ☑ | 16 | Memory | 建立受根目录约束、由调用方显式选择的分级 Markdown 长期记忆注入。 |
 | ☐ | 17 | Artifact | 将大对象外置到磁盘或存储中，上下文只保留摘要与引用。 |
 | ☐ | 18 | Hooks | 在工具调用前后执行用户定义的回调。 |
 | ☐ | 19 | Middleware | 用洋葱式中间件包装模型调用或 Agent 执行流程。 |
@@ -249,4 +249,12 @@
 
 ## 当前下一步
 
-进入 **第 16 章 · Memory**。
+## 第 16 章 Checkpoint
+
+- ☑ `MemoryStore` 从 root-confined Markdown files 按调用者选择的层级顺序注入 context；
+- ☑ 拒绝 unsafe scope；不含 DB、embedding、自动检索或自动写入；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 17 章 · Artifact**。
