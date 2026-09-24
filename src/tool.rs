@@ -1,4 +1,4 @@
-use crate::llm::ToolDefinition;
+use crate::{filesystem::Workspace, llm::ToolDefinition};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -118,6 +118,113 @@ impl Tool for GetWeatherTool {
             "temperature_c": 20,
             "source": "fixed-demo"
         }))
+    }
+}
+
+pub struct ListFilesTool {
+    workspace: Workspace,
+}
+pub struct ReadFileTool {
+    workspace: Workspace,
+}
+pub struct CreateFileTool {
+    workspace: Workspace,
+}
+pub struct OverwriteFileTool {
+    workspace: Workspace,
+}
+
+impl ListFilesTool {
+    pub fn new(workspace: Workspace) -> Self {
+        Self { workspace }
+    }
+}
+impl ReadFileTool {
+    pub fn new(workspace: Workspace) -> Self {
+        Self { workspace }
+    }
+}
+impl CreateFileTool {
+    pub fn new(workspace: Workspace) -> Self {
+        Self { workspace }
+    }
+}
+impl OverwriteFileTool {
+    pub fn new(workspace: Workspace) -> Self {
+        Self { workspace }
+    }
+}
+
+fn string_argument(arguments: Value, field: &str) -> Result<String, ToolError> {
+    arguments
+        .as_object()
+        .and_then(|object| object.get(field))
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| ToolError::InvalidArguments(format!("缺少非空字符串字段 {field}")))
+}
+
+impl Tool for ListFilesTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition::new(
+            "list_files",
+            "列出工作区目录的直接内容。",
+            json!({"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}),
+        )
+    }
+    fn execute(&self, arguments: Value) -> Result<Value, ToolError> {
+        Ok(
+            json!({"entries": self.workspace.list(&string_argument(arguments, "path")?).map_err(|error| ToolError::Execution(error.to_string()))?}),
+        )
+    }
+}
+impl Tool for ReadFileTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition::new(
+            "read_file",
+            "读取工作区内一个 UTF-8 文本文件。",
+            json!({"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}),
+        )
+    }
+    fn execute(&self, arguments: Value) -> Result<Value, ToolError> {
+        Ok(
+            json!({"content": self.workspace.read(&string_argument(arguments, "path")?).map_err(|error| ToolError::Execution(error.to_string()))?}),
+        )
+    }
+}
+impl Tool for CreateFileTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition::new(
+            "create_file",
+            "在工作区创建新文本文件；若文件已存在则拒绝。",
+            json!({"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}),
+        )
+    }
+    fn execute(&self, arguments: Value) -> Result<Value, ToolError> {
+        let path = string_argument(arguments.clone(), "path")?;
+        let content = string_argument(arguments, "content")?;
+        self.workspace
+            .create(&path, &content)
+            .map_err(|error| ToolError::Execution(error.to_string()))?;
+        Ok(json!({"created": path}))
+    }
+}
+impl Tool for OverwriteFileTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition::new(
+            "overwrite_file",
+            "显式替换工作区内已有文本文件的全部内容。",
+            json!({"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}),
+        )
+    }
+    fn execute(&self, arguments: Value) -> Result<Value, ToolError> {
+        let path = string_argument(arguments.clone(), "path")?;
+        let content = string_argument(arguments, "content")?;
+        self.workspace
+            .overwrite(&path, &content)
+            .map_err(|error| ToolError::Execution(error.to_string()))?;
+        Ok(json!({"overwritten": path}))
     }
 }
 

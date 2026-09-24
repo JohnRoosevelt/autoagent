@@ -46,7 +46,7 @@
 |---|---:|---|---|
 | ☑ | 09 | Context Manager | 在模型调用边界按消息预算裁剪请求历史，保留 system 与完整 tool-call 交换。 |
 | ☑ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
-| ☐ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
+| ☑ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
 | ☐ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
 | ☐ | 13 | Command / TUI | 增加斜杠命令与终端交互界面。 |
 
@@ -203,4 +203,14 @@
 
 ## 当前下一步
 
-进入 **第 11 章 · Filesystem 工具**，在受配置工作区根目录约束的前提下安全读写文件。
+## 第 11 章 Checkpoint
+
+- ☑ 新增以 canonical workspace root 约束的 `Workspace`，提供稳定排序的列目录、UTF-8 读文件、创建新文件与显式覆盖已有文件；
+- ☑ 拒绝绝对路径和 `..` traversal，并在读/写时验证 canonical 目标或父目录仍在工作区中；
+- ☑ 注册 `list_files`、`read_file`、`create_file`、`overwrite_file` 本地工具；创建不会覆盖，删除/重命名不在范围；
+- ☑ 离线测试覆盖受限读写、traversal 拒绝和显式覆盖；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 12 章 · Shell / Git 工具**，提供受控的本地检查命令。

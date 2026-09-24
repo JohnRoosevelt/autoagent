@@ -1,5 +1,6 @@
 mod agent;
 mod context;
+mod filesystem;
 mod llm;
 mod message;
 #[allow(dead_code)]
@@ -7,11 +8,14 @@ mod session;
 mod tool;
 
 use agent::{Agent, AgentEvent, RetryPolicy};
+use filesystem::Workspace;
 use llm::{FinishReason, StreamEvent, client::LlmClient};
 use message::{Conversation, Role};
 use std::{io::Write, time::Duration};
 use tokio::sync::mpsc;
-use tool::{GetWeatherTool, ToolRegistry};
+use tool::{
+    CreateFileTool, GetWeatherTool, ListFilesTool, OverwriteFileTool, ReadFileTool, ToolRegistry,
+};
 
 // 属性宏：把 async main 改写成同步 main，并在内部构建/启动 tokio 运行时
 #[tokio::main]
@@ -23,6 +27,11 @@ async fn main() -> anyhow::Result<()> {
     conversation.add_system("你是一个简洁、准确的助手。");
     let mut tools = ToolRegistry::new();
     tools.register(GetWeatherTool)?;
+    let workspace = Workspace::new(std::env::current_dir()?)?;
+    tools.register(ListFilesTool::new(workspace.clone()))?;
+    tools.register(ReadFileTool::new(workspace.clone()))?;
+    tools.register(CreateFileTool::new(workspace.clone()))?;
+    tools.register(OverwriteFileTool::new(workspace))?;
     let mut agent = Agent::new(client, conversation, 3)?
         .with_tool_registry(tools)
         .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)))
