@@ -26,6 +26,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 17 | `chapter-17-artifact` | Artifact：root-confined 的外置 bytes 与小引用。 |
 | 18 | `chapter-18-hooks` | Hooks：Tool pre/post 的本地 callback wrapper。 |
 | 19 | `chapter-19-middleware` | Middleware：最小 StreamChatModel call wrapper。 |
+| 20 | `chapter-20-plugins` | Plugins：manifest/registry convention，无动态加载。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -92,6 +93,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ `MiddlewareModel` 包装既有模型调用边界；
 - ☑ 不包含 middleware chain、洋葱调度或全局 Agent 重写。
+
+## 第 20 章 Checkpoint（已发布为 `chapter-20-plugins`）
+
+- ☑ serializable manifest 与稳定的 registry convention；
+- ☑ 不扫描目录、不动态加载、不使用 dynamic library 或 WASM。
 
 ## 查看 Tag
 

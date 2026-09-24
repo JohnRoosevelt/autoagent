@@ -62,7 +62,7 @@
 | ☑ | 17 | Artifact | 将大对象外置到受根目录约束的磁盘文件，上下文只保留引用。 |
 | ☑ | 18 | Hooks | 以最小 wrapper 在工具调用前后执行本地定义的回调。 |
 | ☑ | 19 | Middleware | 用最小 model wrapper 在模型调用前包装既有 Agent 模型边界。 |
-| ☐ | 20 | Plugins | 定义插件目录与注册约定，将可选能力打包和加载。 |
+| ☑ | 20 | Plugins | 定义可选能力的 manifest/registry 约定，不动态加载。 |
 
 ## 第四幕 · 上生产（21–29）
 
@@ -281,4 +281,12 @@
 
 ## 当前下一步
 
-进入 **第 20 章 · Plugins**。
+## 第 20 章 Checkpoint
+
+- ☑ `PluginManifest` 与稳定 `PluginRegistry` 定义可选、已链接能力的 metadata convention；
+- ☑ 拒绝空/重复名称；不扫描目录、不动态加载、不使用 dynamic library/WASM；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 21 章 · Configuration**。
