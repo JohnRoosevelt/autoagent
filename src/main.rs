@@ -7,6 +7,8 @@ mod compaction;
 #[allow(dead_code)]
 mod configuration;
 mod context;
+#[allow(dead_code)]
+mod evaluation;
 mod filesystem;
 #[allow(dead_code)]
 mod hooks;

@@ -35,6 +35,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 26 | `chapter-26-job-scheduler` | Job / Scheduler：in-memory enqueue/query/cancel state machine。 |
 | 27 | `chapter-27-model-router` | Model Router：deterministic primary/fallback candidates。 |
 | 28 | `chapter-28-observability` | Observability：local structured span recorder。 |
+| 29 | `chapter-29-evaluation` | Evaluation：repeatable injected local case harness。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -146,6 +147,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 本地、稳定顺序的 structured span recorder；
 - ☑ 无 telemetry export、logging 或 metrics backend。
+
+## 第 29 章 Checkpoint（已发布为 `chapter-29-evaluation`）
+
+- ☑ 以 injected local implementation 执行可重复 case；
+- ☑ 无模型调用、网络或外部 benchmark。
 
 ## 查看 Tag
 
