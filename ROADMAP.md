@@ -76,7 +76,7 @@
 | ☑ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
 | ☑ | 25 | Compaction (`/compact`) | 在上下文装不下时，用摘要替换旧历史并保留任务关键事实。 |
 | ☑ | 26 | Job / Scheduler | 将长任务放入后台队列执行，并查询、取消或恢复任务。 |
-| ☐ | 27 | Model Router | 在多个模型供应商之间选路、降级和回退。 |
+| ☑ | 27 | Model Router | 在多个模型供应商之间选路、降级和回退。 |
 | ☐ | 28 | Observability | 用 trace、span、日志、指标记录 Agent 的执行过程。 |
 | ☐ | 29 | Evaluation | 为 Agent 行为建立可重复执行的任务评测与回归测试。 |
 
@@ -338,4 +338,12 @@
 
 ## 当前下一步
 
-进入 **第 27 章 · Model Router**。
+## 第 27 章 Checkpoint
+
+- ☑ 按 primary 后 fallbacks 的稳定顺序提供模型候选项；
+- ☑ 调用方仍决定错误是否可 fallback；不发起 provider 请求；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 28 章 · Observability**。
