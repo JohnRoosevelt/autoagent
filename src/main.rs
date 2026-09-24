@@ -8,6 +8,8 @@ mod compaction;
 mod configuration;
 mod context;
 #[allow(dead_code)]
+mod cost;
+#[allow(dead_code)]
 mod evaluation;
 mod filesystem;
 mod framework;
