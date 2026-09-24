@@ -56,7 +56,7 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 14 | Skills | 用按需加载的 Markdown 说明目录沉淀任务知识和工作流程。 |
+| ☑ | 14 | Skills | 用受根目录约束、按名称按需加载的 Markdown 说明沉淀任务知识和工作流程。 |
 | ☐ | 15 | Subagent | 将具有独立上下文和任务边界的 Agent 包装成工具。 |
 | ☐ | 16 | Memory | 建立分级的长期记忆文件，并在合适时注入上下文。 |
 | ☐ | 17 | Artifact | 将大对象外置到磁盘或存储中，上下文只保留摘要与引用。 |
@@ -232,4 +232,13 @@
 
 ## 当前下一步
 
-进入 **第 14 章 · Skills**，探索按需加载的任务知识与工作流说明。
+## 第 14 章 Checkpoint
+
+- ☑ 新增受 canonical root 约束的 `SkillDirectory`，只列出并按名称按需读取 UTF-8 Markdown 定义；
+- ☑ 拒绝 traversal、非 Markdown 文件和不以 Markdown 标题开始的定义；不执行技能内容、不扫描工作区或动态加载代码；
+- ☑ 离线测试覆盖稳定列表、按需加载和无效路径/定义；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 15 章 · Subagent**，探索独立上下文边界的子 Agent 包装。

@@ -7,6 +7,8 @@ mod message;
 #[allow(dead_code)]
 mod session;
 mod shell;
+#[allow(dead_code)]
+mod skills;
 mod tool;
 
 use agent::{Agent, AgentEvent, RetryPolicy};
