@@ -42,6 +42,8 @@ mod sandbox;
 #[allow(dead_code)]
 mod scheduler;
 #[allow(dead_code)]
+mod service;
+#[allow(dead_code)]
 mod session;
 mod shell;
 #[allow(dead_code)]

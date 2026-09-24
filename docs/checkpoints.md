@@ -43,6 +43,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 34 | `chapter-34-guardrails` | Guardrails：untrusted content data 标记与出站 secret filtering。 |
 | 35 | `chapter-35-web-fetch` | Web Fetch：strict HTTPS allowlist、size cap 与 local HTML text。 |
 | 36 | `chapter-36-rag-embedding` | RAG / Embedding：deterministic local token-overlap retrieval。 |
+| 37 | `chapter-37-agent-as-service` | Agent as Service：local bounded-channel session actor skeleton。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -159,6 +160,10 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 37 章 Checkpoint（已发布为 `chapter-37-agent-as-service`）
+
+- ☑ local bounded-channel session actor/client skeleton 与既有 events forwarding；无 public network server。
 
 ## 第 36 章 Checkpoint（已发布为 `chapter-36-rag-embedding`）
 

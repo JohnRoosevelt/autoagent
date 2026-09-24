@@ -100,7 +100,7 @@
 | ☑ | 34 | Guardrails | 将外部内容标记为数据，检测指令式文本并在出站前 redaction 配置的 secret literals。 |
 | ☑ | 35 | Web Fetch | local safe-fetch policy：HTTPS exact allowlist、拒绝 SSRF URL shape、size cap 与 HTML 转文本；不发真实外网请求。 |
 | ☑ | 36 | RAG / Embedding | 本地确定性 token-overlap retrieval，稳定排序返回文本；不依赖外部 embedding 或 vector DB。 |
-| ☐ | 37 | Agent as Service | 将会话实现为 actor，并通过 SSE 等方式向客户端推送事件。 |
+| ☑ | 37 | Agent as Service | 本地 bounded channel session actor skeleton，按命令处理 prompt/cancel 并转发现有 Agent events；不启动网络服务。 |
 
 ## 终幕 · 收官与对照（38–39）
 
@@ -112,6 +112,12 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 37 章 Checkpoint
+
+- ☑ 提供本地有界 channel 的 session actor/client skeleton，保存 prompt/cancel 命令边界并转发现有 `AgentEvent`；
+- ☑ 不启动 HTTP/SSE server、不公开 socket，也不改变 Agent 生命周期协议；
+- ☑ 完整 Rust 质量门禁通过。
 
 ## 第 36 章 Checkpoint
 
