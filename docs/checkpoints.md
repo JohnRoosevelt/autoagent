@@ -19,6 +19,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 10 | `chapter-10-session-resume` | Session / Resume：版本化确定性 JSON 的会话保存与恢复。 |
 | 11 | `chapter-11-filesystem-tools` | Filesystem 工具：受工作区根目录约束的安全文件访问。 |
 | 12 | `chapter-12-shell-git-tools` | Shell / Git 工具：离线、allowlist 的只读工作区检查。 |
+| 13 | `chapter-13-command-tui` | Command / TUI：最小 CLI/slash command 入口。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -48,6 +49,12 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 固定 allowlist 的 Cargo/Git 检查，无 shell 或任意命令；
 - ☑ Cargo 离线运行，Git 子命令为只读检查；拒绝破坏性与网络命令。
+
+## 第 13 章 Checkpoint（已发布为 `chapter-13-command-tui`）
+
+- ☑ 依赖无关的 `/help`、`/status`、`/exit`/`/quit` 和位置参数 prompt 解析；
+- ☑ UI-only 命令在加载 LLM 配置或发起网络前退出；未知 slash command 拒绝；
+- ☑ 不包含全屏 TUI、line editor 或交互历史。
 
 ## 查看 Tag
 

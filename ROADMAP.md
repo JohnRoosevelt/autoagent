@@ -48,7 +48,7 @@
 | ☑ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
 | ☑ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
 | ☑ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
-| ☐ | 13 | Command / TUI | 增加斜杠命令与终端交互界面。 |
+| ☑ | 13 | Command / TUI | 增加斜杠命令与终端交互界面。 |
 
 ## 第三幕 · 生长（14–20）
 
@@ -222,4 +222,14 @@
 
 ## 当前下一步
 
-进入 **第 13 章 · Command / TUI**，增加最小 CLI 命令和交互入口。
+## 第 13 章 Checkpoint
+
+- ☑ 新增无额外依赖的 CLI/slash command 解析：`/help`、`/status`、`/exit`/`/quit`，以及将普通位置参数合并为 Agent prompt；
+- ☑ UI-only 命令在加载 LLM 配置前结束，因此不会要求凭据或触发网络；未知 slash command 明确拒绝；
+- ☑ 离线测试覆盖命令、prompt 合并与未知命令；手动验证 `/help` 和 `/status`；
+- ☑ 不实现全屏 TUI、line editor、历史、颜色、后台输入、多会话选择或复杂命令权限；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 14 章 · Skills**，探索按需加载的任务知识与工作流说明。

@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，以及最小 CLI/slash command 入口。
 
 ## 学习路线
 
@@ -31,6 +31,7 @@
 - 使用版本化、确定性 JSON 保存会话账本、待处理输入、可恢复执行配置与已完成运行报告；加载会拒绝未知版本，恢复时由宿主重新注入模型和本地工具；
 - 在 canonical workspace root 内列出、读取、创建和显式覆盖 UTF-8 文件；拒绝绝对路径、`..` traversal 和经 symlink 逃逸的已有目标，且不提供删除/重命名；
 - `run_inspection` 仅运行离线 `cargo check`/`cargo test` 与只读 `git status`/`diff`/`log`；不接受 shell 或任意命令；
+- 提供依赖无关的 CLI：`/help`、`/status`、`/exit`/`/quit`，或把普通位置参数作为一次 Agent prompt；UI-only 命令不会加载 LLM 配置；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -40,6 +41,7 @@
 ├── src/
 │   ├── main.rs          # 程序入口：配置演示输入并显示 Agent 生命周期与模型流事件
 │   ├── agent.rs         # Agent Loop：会话状态、生命周期事件、重试/取消、上下文边界、模型流转发与回复回填
+│   ├── command.rs       # 最小 CLI/slash command 解析
 │   ├── context.rs       # Context Manager：按消息预算生成协议安全的模型请求历史
 │   ├── filesystem.rs    # 受 canonical workspace root 约束的文件访问
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
@@ -82,6 +84,16 @@ AGENT_MODEL=openrouter/free
 `AGENT_BASE_URL` 只填写 API 版本根路径，不要附加 `/chat/completions`；客户端会自行拼接该路径。
 
 `.env` 已被 `.gitignore` 忽略，请不要提交 API Key。
+
+### 最小命令
+
+```sh
+cargo run -- /help
+cargo run -- /status
+cargo run -- "解释这个项目的结构"
+```
+
+`/help`、`/status`、`/exit` 和 `/quit` 都在创建 LLM client 前处理；未知 slash command 会返回明确错误。此阶段是最小终端入口，而非全屏 TUI。
 
 ## 运行
 
@@ -137,6 +149,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 13 章范围
+
+本章增加轻量 `command` 模块，不引入 CLI 或 TUI 依赖。它识别 `/help`、`/status`、`/exit`、`/quit`，并将非 slash 位置参数合并为一条 prompt；默认仍保留天气演示 prompt。UI-only 命令在读取 `AGENT_API_KEY` 前返回，所以可安全地用于本地帮助和状态确认。本章不实现全屏 TUI、交互式行编辑、历史、多会话菜单或后台输入。
 
 ## 第 12 章范围
 

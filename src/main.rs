@@ -1,4 +1,5 @@
 mod agent;
+mod command;
 mod context;
 mod filesystem;
 mod llm;
@@ -9,6 +10,7 @@ mod shell;
 mod tool;
 
 use agent::{Agent, AgentEvent, RetryPolicy};
+use command::Command;
 use filesystem::Workspace;
 use llm::{FinishReason, StreamEvent, client::LlmClient};
 use message::{Conversation, Role};
@@ -22,6 +24,20 @@ use tool::{
 // 属性宏：把 async main 改写成同步 main，并在内部构建/启动 tokio 运行时
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let prompt = match command::parse_args(std::env::args().skip(1))? {
+        Command::Help => {
+            println!("{}", command::help_text());
+            return Ok(());
+        }
+        Command::Status => {
+            println!(
+                "AutoAgent ready. Workspace tools are root-confined; inspections are offline and allowlisted."
+            );
+            return Ok(());
+        }
+        Command::Exit => return Ok(()),
+        Command::Prompt(prompt) => prompt,
+    };
     let client = LlmClient::from_env()?;
     println!("model = {}", client.model);
 
@@ -39,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         .with_tool_registry(tools)
         .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)))
         .with_history_message_budget(32);
-    agent.enqueue_user("请查询北京现在的天气。请调用 get_weather，不要猜测结果。");
+    agent.enqueue_user(prompt);
 
     let (tx, mut rx) = mpsc::channel(32);
     let renderer = tokio::spawn(async move {
