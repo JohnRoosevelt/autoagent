@@ -40,6 +40,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 31 | `chapter-31-parallel-tool-use` | Parallel Tool Use：默认串行、显式安全工具的有界并发 dispatch。 |
 | 32 | `chapter-32-steering` | Steering：安全回合边界的有界本地 inbox 与协作式取消。 |
 | 33 | `chapter-33-prompt-caching-cost` | Prompt Caching / Cost：local stable-prefix 与 token 成本核算。 |
+| 34 | `chapter-34-guardrails` | Guardrails：untrusted content data 标记与出站 secret filtering。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -156,6 +157,10 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 34 章 Checkpoint（已发布为 `chapter-34-guardrails`）
+
+- ☑ 标记 instruction-like 外部文本，并 redaction 配置的 secret literals；不执行内容。
 
 ## 第 33 章 Checkpoint（已发布为 `chapter-33-prompt-caching-cost`）
 

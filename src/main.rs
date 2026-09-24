@@ -14,6 +14,8 @@ mod evaluation;
 mod filesystem;
 mod framework;
 #[allow(dead_code)]
+mod guardrails;
+#[allow(dead_code)]
 mod hooks;
 mod llm;
 #[allow(dead_code)]

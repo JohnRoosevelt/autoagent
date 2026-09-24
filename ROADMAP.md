@@ -97,7 +97,7 @@
 | ☑ | 31 | Parallel Tool Use | 工具默认串行；只有显式标记为并发安全的调用才经有界本地 executor 并发分发，结果保持请求顺序。 |
 | ☑ | 32 | Steering | 有界本地收件箱按安全回合边界排入插话；取消复用协作式令牌，满队列也不延迟取消。 |
 | ☑ | 33 | Prompt Caching / Cost | 本地确定性稳定前缀指纹和 input/cached/output token 成本核算；不改写 provider 请求。 |
-| ☐ | 34 | Guardrails | 将外部内容视为数据而非指令，并对密钥和敏感内容做出站过滤。 |
+| ☑ | 34 | Guardrails | 将外部内容标记为数据，检测指令式文本并在出站前 redaction 配置的 secret literals。 |
 | ☐ | 35 | Web Fetch | 实现安全 HTTP GET、HTML 转文本、截断和 SSRF 防护。 |
 | ☐ | 36 | RAG / Embedding | 将文本转为向量，检索相近内容，并作为普通工具返回结果。 |
 | ☐ | 37 | Agent as Service | 将会话实现为 actor，并通过 SSE 等方式向客户端推送事件。 |
@@ -112,6 +112,12 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 34 章 Checkpoint
+
+- ☑ 出站 guardrail 标记常见 instruction-like 外部内容并 redaction 显式配置的密钥文本；
+- ☑ 不执行或遵从外部内容，也不记录未过滤 secret；
+- ☑ 完整 Rust 质量门禁通过。
 
 ## 第 33 章 Checkpoint
 
