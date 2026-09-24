@@ -2,8 +2,8 @@
 
 A small Rust learning project that builds an OpenAI-compatible, tool-using agent from explicit local components. It follows the chapter order of a related Agent tutorial series, but the implementation, API, and scope are AutoAgent’s own. **All chapters 00–39 are complete.**
 
-- Architecture: [docs/architecture.md](docs/architecture.md)
-- Mature-design comparison: [docs/mature-project-comparison.md](docs/mature-project-comparison.md)
+- Architecture: [简体中文](docs/architecture.md)
+- Mature-design comparison: [English](docs/mature-project-comparison.md) | [简体中文](docs/mature-project-comparison.zh-CN.md)
 - Roadmap and acceptance checkpoints: [ROADMAP.md](ROADMAP.md)
 - Tagged chapter checkpoints: [docs/checkpoints.md](docs/checkpoints.md)
 
