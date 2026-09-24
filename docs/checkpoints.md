@@ -28,6 +28,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 19 | `chapter-19-middleware` | Middleware：最小 StreamChatModel call wrapper。 |
 | 20 | `chapter-20-plugins` | Plugins：manifest/registry convention，无动态加载。 |
 | 21 | `chapter-21-configuration` | Configuration：defaults < file < environment 的非私密设置合并。 |
+| 22 | `chapter-22-permission` | Permission：default-deny 的敏感能力审批。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -104,6 +105,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 测试化的 defaults < local file < environment 分层设置；
 - ☑ 不处理、保存或显示 API key。
+
+## 第 22 章 Checkpoint（已发布为 `chapter-22-permission`）
+
+- ☑ 默认拒绝写入、删除、命令与网络 capability；
+- ☑ 仅建模审批，不执行操作。
 
 ## 查看 Tag
 
