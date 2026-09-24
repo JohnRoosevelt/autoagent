@@ -44,6 +44,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 35 | `chapter-35-web-fetch` | Web Fetch：strict HTTPS allowlist、size cap 与 local HTML text。 |
 | 36 | `chapter-36-rag-embedding` | RAG / Embedding：deterministic local token-overlap retrieval。 |
 | 37 | `chapter-37-agent-as-service` | Agent as Service：local bounded-channel session actor skeleton。 |
+| 38 | `chapter-38-final-architecture` | Final Architecture：记录已稳定的模块边界、依赖方向与扩展准则。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -160,6 +161,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 38 章 Checkpoint（已发布为 `chapter-38-final-architecture`）
+
+- ☑ `docs/architecture.md` 记录当前真实运行链路、稳定边界、依赖方向与扩展准则；
+- ☑ 确认 `AgentBuilder`/`App`、`Agent`、`StreamChatModel`、`Tool` 和 `SessionActor` 已足以表达职责边界，未加入重复 facade/module。
 
 ## 第 37 章 Checkpoint（已发布为 `chapter-37-agent-as-service`）
 

@@ -108,10 +108,16 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 38 | 最终架构 | 汇总并整理完整架构、模块边界与运行链路。 |
+| ☑ | 38 | 最终架构 | 在 `docs/architecture.md` 固化运行链路、稳定模块边界、依赖方向与扩展准则；不为文档重复引入新 facade。 |
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 38 章 Checkpoint
+
+- ☑ 新增 `docs/architecture.md`，从现有代码归纳 host composition、Agent core、model protocol、state/request shaping、local capabilities 与 transport seams；
+- ☑ 明确 `AgentBuilder`/`App`、`Agent`、`StreamChatModel`、`Tool` 和 `SessionActor` 的稳定职责与依赖方向；
+- ☑ 不新增仅重复既有边界的架构 facade/module；完整 Rust 质量门禁通过。
 
 ## 第 37 章 Checkpoint
 
