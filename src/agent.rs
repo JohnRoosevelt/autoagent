@@ -1,7 +1,9 @@
 use crate::{
-    llm::{ChatResponse, LlmError, StreamEvent, ToolCall, ToolDefinition},
+    llm::{ChatResponse, LlmError, StreamEvent, ToolDefinition},
     message::{Conversation, Message},
+    tool::{ToolError, ToolRegistry},
 };
+use serde_json::json;
 use std::{collections::VecDeque, future::Future};
 use tokio::sync::mpsc;
 
@@ -20,8 +22,6 @@ pub trait StreamChatModel: Clone + Send + Sync + 'static {
 pub enum TerminationReason {
     NoPendingInput,
     MaxStepsReached,
-    /// assistant 工具调用已入账，等待宿主在第 06 章执行并追加 tool result。
-    ToolCallsRequested,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,12 +32,14 @@ pub enum AgentState {
     Failed,
 }
 
-/// 一次运行的摘要，供调用方记录、显示或接续工具执行。
+/// 一次运行的摘要，供调用方记录和显示。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RunReport {
+    /// 模型调用数；工具执行不单独计为 Agent step。
     pub steps_taken: usize,
     pub termination: TerminationReason,
-    pub requested_tool_calls: Vec<ToolCall>,
+    /// 本次已被 Registry 串行处理（成功或失败）的 tool call 数量。
+    pub tool_calls_processed: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -52,11 +54,11 @@ pub enum AgentError {
     ModelTask(String),
 }
 
-/// 管理一次运行的会话、工具声明、待处理输入和循环状态。
+/// 管理一次运行的会话、运行时本地工具、待处理输入和循环状态。
 pub struct Agent<M> {
     model: M,
     conversation: Conversation,
-    tools: Vec<ToolDefinition>,
+    tools: ToolRegistry,
     pending_inputs: VecDeque<String>,
     max_steps: usize,
     steps_taken: usize,
@@ -71,7 +73,7 @@ impl<M: StreamChatModel> Agent<M> {
         Ok(Self {
             model,
             conversation,
-            tools: Vec::new(),
+            tools: ToolRegistry::new(),
             pending_inputs: VecDeque::new(),
             max_steps,
             steps_taken: 0,
@@ -79,16 +81,15 @@ impl<M: StreamChatModel> Agent<M> {
         })
     }
 
-    /// 为本次运行声明可供模型选择的函数；不代表函数已经实现或可执行。
-    #[allow(dead_code)]
-    pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
+    /// 注入启动时组装的本地 Registry；该 Registry 不提供动态加载能力。
+    pub fn with_tool_registry(mut self, tools: ToolRegistry) -> Self {
         self.tools = tools;
         self
     }
+
     pub fn enqueue_user(&mut self, content: impl Into<String>) {
         self.pending_inputs.push_back(content.into());
     }
-    #[allow(dead_code)]
     pub fn conversation(&self) -> &Conversation {
         &self.conversation
     }
@@ -106,17 +107,28 @@ impl<M: StreamChatModel> Agent<M> {
         events: mpsc::Sender<StreamEvent>,
     ) -> Result<RunReport, AgentError> {
         self.state = AgentState::Running;
+        let mut needs_model_turn = false;
+        let mut tool_calls_processed = 0;
+
         while self.steps_taken < self.max_steps {
-            let Some(input) = self.pending_inputs.pop_front() else {
-                return Ok(self.stop(TerminationReason::NoPendingInput, Vec::new()));
-            };
-            self.conversation.add_user(input);
+            if !needs_model_turn {
+                let Some(input) = self.pending_inputs.pop_front() else {
+                    return Ok(self.stop(TerminationReason::NoPendingInput, tool_calls_processed));
+                };
+                self.conversation.add_user(input);
+            }
+            needs_model_turn = false;
+
             let history = self.conversation.messages().to_vec();
+            let definitions = self.tools.definitions();
             let (model_events, mut model_rx) = mpsc::channel(32);
             let producer = tokio::spawn({
                 let model = self.model.clone();
-                let tools = self.tools.clone();
-                async move { model.chat_stream(&history, &tools, model_events).await }
+                async move {
+                    model
+                        .chat_stream(&history, &definitions, model_events)
+                        .await
+                }
             });
             while let Some(event) = model_rx.recv().await {
                 if events.send(event).await.is_err() {
@@ -128,34 +140,45 @@ impl<M: StreamChatModel> Agent<M> {
             let response = producer
                 .await
                 .map_err(|error| AgentError::ModelTask(error.to_string()))??;
+            self.steps_taken += 1;
             self.conversation
                 .add_assistant_response(response.content, response.tool_calls.clone());
-            self.steps_taken += 1;
+
             if !response.tool_calls.is_empty() {
-                return Ok(self.stop(TerminationReason::ToolCallsRequested, response.tool_calls));
+                for call in response.tool_calls {
+                    let content =
+                        tool_result_content(self.tools.execute(&call.name, &call.arguments));
+                    self.conversation.add_tool(call.id, content);
+                    tool_calls_processed += 1;
+                }
+                // The adjacent assistant/tool messages are now part of history for the next call.
+                needs_model_turn = true;
+            } else if self.pending_inputs.is_empty() {
+                return Ok(self.stop(TerminationReason::NoPendingInput, tool_calls_processed));
             }
         }
-        Ok(self.stop(
-            if self.pending_inputs.is_empty() {
-                TerminationReason::NoPendingInput
-            } else {
-                TerminationReason::MaxStepsReached
-            },
-            Vec::new(),
-        ))
+
+        Ok(self.stop(TerminationReason::MaxStepsReached, tool_calls_processed))
     }
 
-    fn stop(
-        &mut self,
-        termination: TerminationReason,
-        requested_tool_calls: Vec<ToolCall>,
-    ) -> RunReport {
+    fn stop(&mut self, termination: TerminationReason, tool_calls_processed: usize) -> RunReport {
         self.state = AgentState::Stopped(termination);
         RunReport {
             steps_taken: self.steps_taken,
             termination,
-            requested_tool_calls,
+            tool_calls_processed,
         }
+    }
+}
+
+fn tool_result_content(result: Result<serde_json::Value, ToolError>) -> String {
+    match result {
+        Ok(value) => json!({ "ok": true, "result": value }).to_string(),
+        Err(error) => json!({
+            "ok": false,
+            "error": { "code": error.code(), "message": error.to_string() }
+        })
+        .to_string(),
     }
 }
 

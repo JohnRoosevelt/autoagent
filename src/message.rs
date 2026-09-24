@@ -55,6 +55,15 @@ impl Message {
             tool_call_id: None,
         }
     }
+
+    pub fn tool(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: Role::Tool,
+            content: Some(content.into()),
+            tool_calls: Vec::new(),
+            tool_call_id: Some(tool_call_id.into()),
+        }
+    }
 }
 
 /// 按发送顺序保存一段会话的消息历史。
@@ -88,6 +97,9 @@ impl Conversation {
             (!content.is_empty()).then_some(content),
             tool_calls,
         ));
+    }
+    pub fn add_tool(&mut self, tool_call_id: impl Into<String>, content: impl Into<String>) {
+        self.push(Message::tool(tool_call_id, content));
     }
 }
 

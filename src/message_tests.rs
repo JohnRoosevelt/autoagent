@@ -10,6 +10,18 @@ fn serializes_messages_with_openai_compatible_roles() {
 }
 
 #[test]
+fn serializes_tool_results_with_the_call_id() {
+    assert_eq!(
+        serde_json::to_value(Message::tool("call_1", "{\"ok\":true}")).unwrap(),
+        serde_json::json!({"role":"tool","tool_call_id":"call_1","content":"{\"ok\":true}"})
+    );
+
+    let mut conversation = Conversation::new();
+    conversation.add_tool("call_2", "result");
+    assert_eq!(conversation.messages(), [Message::tool("call_2", "result")]);
+}
+
+#[test]
 fn assistant_tool_calls_are_preserved_for_the_next_request() {
     let calls = vec![ToolCall {
         id: "call_1".into(),

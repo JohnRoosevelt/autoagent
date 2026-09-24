@@ -34,7 +34,7 @@
 | ☑ | 03 | Streaming / SSE | 解析 OpenAI-compatible SSE 增量事件，实时输出文本并在结束后汇总回复与 usage。 |
 | ☑ | 04 | Agent Loop | 以独立 Agent 管理会话、状态与流式调用循环；通过待处理输入和最大步数保护明确结束运行，并为后续工具结果回填预留分支。 |
 | ☑ | 05 | Tool / Function Calling | 建立 OpenAI-compatible tools/tool_calls 协议模型、请求序列化、非流式与 SSE 解析及 Agent 暂停承接；不执行真实工具。 |
-| ☐ | 06 | Tool Registry | 建立工具注册表、参数校验与工具分发器。 |
+| ☑ | 06 | Tool Registry | 建立启动时组装的本地工具注册表、最小参数校验、串行分发、`role: tool` 结果回填与继续循环；不是动态插件系统。 |
 | ☐ | 07 | Retry / Cancel | 处理超时、限流、重试，以及 Ctrl+C 取消和资源清理。 |
 | ☐ | 08 | Event / Lifecycle | 用事件描述 Agent 发生了什么，让核心逻辑与显示层解耦。 |
 
@@ -157,6 +157,15 @@
 - ☑ 以离线测试覆盖请求、null content、多调用、分块 arguments、消息入账和 Agent 暂停；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 06 章 Checkpoint
+
+- ☑ 定义最小 `Tool` 抽象和启动时组装的 `ToolRegistry`，支持注册、重复名称拒绝、查找及稳定导出工具定义；
+- ☑ 在工具执行前解析原始 JSON arguments，由工具完成所需字段、类型与必填项的最小校验；
+- ☑ Agent 按模型返回顺序串行分发工具调用，先入账 assistant `tool_calls`，再以关联 `tool_call_id` 写入成功或失败的 `role: tool` JSON 结果，并继续模型循环；
+- ☑ 使用确定性、完全离线的 `get_weather` 演示工具，并以 FakeModel 覆盖单调用、多调用、错误回填和工具回合中的最大步数保护；
+- ☑ 保持 SSE/tool_calls 协议解析在 LLM 客户端；未引入动态库、WASM、目录发现、热加载或 Plugin Manager；第 14 章 Skills、第 20 章 Plugins 和第 24 章 MCP 再探索动态扩展；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 06 章 · Tool Registry**，在 Agent 的 `ToolCallsRequested` 暂停点接入工具注册、参数校验、执行、`role: tool` 结果入账和继续循环。
+进入 **第 07 章 · Retry / Cancel**，处理超时、限流、重试以及 Ctrl+C 取消和资源清理。

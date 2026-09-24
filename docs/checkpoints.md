@@ -12,8 +12,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 02 | `chapter-02-message-context` | Message / Token / Context：对话账本、历史重放、服务端 usage 与三轮 token 演示。 |
 | 03 | `chapter-03-streaming` | Streaming / SSE：增量事件解析、统一事件流、实时文本输出与最终 usage 汇总。 |
 | 05 | `chapter-05-tool-calling` | Tool / Function Calling：OpenAI-compatible tools/tool_calls 协议映射、流式聚合与 Agent 工具请求暂停状态。 |
+| 06 | `chapter-06-tool-registry` | Tool Registry：本地工具注册、最小参数校验、串行分发、`role: tool` 结果回填与继续 Agent Loop。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
+
+第 06 章的 Registry 仅在程序启动时组装编译进二进制的 Rust 工具；它不是动态库、WASM、目录发现、热加载或 Plugin Manager。更进一步的动态扩展留待第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP。
 
 ## 查看 Tag
 

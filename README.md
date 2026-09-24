@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop 与 Tool / Function Calling 协议承接。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接，以及本地 Tool Registry 分发。
 
 ## 学习路线
 
@@ -22,8 +22,9 @@
 - 通过 SSE 接收 OpenAI-compatible 服务的增量事件，并用 Tokio channel 将 `Start`、文本增量与完成事件交给显示层；
 - 由 `Agent` 管理会话、待处理输入与执行步数，在内部循环调用模型、转发流事件并回填 assistant 回复；
 - 声明 OpenAI-compatible `tools`，解析非流式与 SSE 流式 `tool_calls`（包括分块 arguments），并保留 assistant 工具调用上下文；
-- Agent 收到工具请求后显式暂停为“等待工具执行”，不在协议章节伪造执行结果；
-- 以“没有待处理输入”或“达到最大步数”明确结束 Agent 运行，防止未来工具分支出现无限循环；
+- 通过启动时组装的本地 `ToolRegistry` 注册、查找并串行分发编译进程序的 Rust 工具，拒绝重复工具名；
+- 工具调用 arguments 在执行前解析为 JSON，并由工具完成最小字段校验；成功或失败结果均作为关联 `tool_call_id` 的 `role: tool` 消息回填，随后继续 Agent Loop；
+- 以“没有待处理输入”或“达到最大模型调用步数”明确结束 Agent 运行；工具执行本身不额外计步。
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -34,6 +35,7 @@
 │   ├── main.rs          # 程序入口：配置演示输入并显示 Agent 转发的流事件
 │   ├── agent.rs         # Agent Loop：会话状态、步数保护、流事件转发与回复回填
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
+│   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
 │       └── client.rs    # OpenAI-compatible LLM HTTP 客户端
@@ -95,14 +97,16 @@ cargo run
 
 ## 当前示例
 
-当前入口会创建一段包含 system 消息的会话，声明一个**仅用于演示、不会实际执行**的 `get_weather` 工具，并向 `Agent` 排入工具请求：
+当前入口会创建一段包含 system 消息的会话，在启动时向本地 `ToolRegistry` 注册完全离线的 `get_weather` 工具，并向 `Agent` 排入工具请求：
 
 ```text
 system: 你是一个简洁、准确的助手。
 user: 请查询北京现在的天气。请调用 get_weather，不要猜测结果。
 ```
 
-`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和已声明的工具以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 会将 assistant tool_calls 完整写回账本，并以 `ToolCallsRequested` 暂停；它不会伪造天气结果或执行真实工具。第 06 章将在此处接入执行、`role: tool` 回填和继续循环。
+`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和 Registry 导出的工具定义以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 将 assistant `tool_calls` 完整写回账本，经 Registry 按顺序执行工具，并将固定模拟天气结果（或清晰 JSON 错误）以 `role: tool` 与对应 `tool_call_id` 回填，继续请求模型生成最终回复。
+
+本章的 Registry 只是在程序启动时组装编译进二进制的本地 Rust 工具，不是动态库、WASM、目录扫描、热加载或 Plugin Manager。更进一步的动态扩展将分别在第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP 探索。
 
 ## 错误处理约定
 
