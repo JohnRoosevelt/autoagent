@@ -23,6 +23,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 14 | `chapter-14-skills` | Skills：root-confined 的按需 Markdown 定义加载。 |
 | 15 | `chapter-15-subagent` | Subagent：显式 task/context 边界的同步 child wrapper。 |
 | 16 | `chapter-16-memory` | Memory：root-confined 的显式分级 Markdown 注入。 |
+| 17 | `chapter-17-artifact` | Artifact：root-confined 的外置 bytes 与小引用。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -74,6 +75,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 按调用者选定顺序读取受限根目录内的 Markdown memories；
 - ☑ 不使用数据库、embedding 或自动检索。
+
+## 第 17 章 Checkpoint（已发布为 `chapter-17-artifact`）
+
+- ☑ 将 bytes create-new 写入受限目录，仅返回 name/size reference；
+- ☑ 不包含 DB、索引、GC 或远程存储。
 
 ## 查看 Tag
 
