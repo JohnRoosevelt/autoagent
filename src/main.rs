@@ -41,6 +41,8 @@ mod shell;
 #[allow(dead_code)]
 mod skills;
 #[allow(dead_code)]
+mod steering;
+#[allow(dead_code)]
 mod subagent;
 mod tool;
 

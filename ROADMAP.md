@@ -95,7 +95,7 @@
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
 | ☑ | 31 | Parallel Tool Use | 工具默认串行；只有显式标记为并发安全的调用才经有界本地 executor 并发分发，结果保持请求顺序。 |
-| ☐ | 32 | Steering | 支持运行中插话、收件箱、回合边界与安全取消。 |
+| ☑ | 32 | Steering | 有界本地收件箱按安全回合边界排入插话；取消复用协作式令牌，满队列也不延迟取消。 |
 | ☐ | 33 | Prompt Caching / Cost | 保持稳定前缀以利用缓存，并记录 token、缓存与模型成本。 |
 | ☐ | 34 | Guardrails | 将外部内容视为数据而非指令，并对密钥和敏感内容做出站过滤。 |
 | ☐ | 35 | Web Fetch | 实现安全 HTTP GET、HTML 转文本、截断和 SSRF 防护。 |
@@ -112,6 +112,13 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 32 章 Checkpoint
+
+- ☑ 提供有界本地 steering inbox，按提交顺序仅在宿主选择的回合边界排入文本；
+- ☑ 取消复用已有协作式 `CancellationToken`，即使收件箱已满也立即标记取消；
+- ☑ 不强杀同步工具、不创建全局队列或网络控制面；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
 ## 第 31 章 Checkpoint
 

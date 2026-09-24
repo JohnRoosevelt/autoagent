@@ -38,6 +38,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 29 | `chapter-29-evaluation` | Evaluation：repeatable injected local case harness。 |
 | 30 | `chapter-30-framework` | Framework：最小 `AgentBuilder`/`App` 组合配置、策略、工作区工具与既有事件流。 |
 | 31 | `chapter-31-parallel-tool-use` | Parallel Tool Use：默认串行、显式安全工具的有界并发 dispatch。 |
+| 32 | `chapter-32-steering` | Steering：安全回合边界的有界本地 inbox 与协作式取消。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -154,6 +155,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 32 章 Checkpoint（已发布为 `chapter-32-steering`）
+
+- ☑ 有界 inbox 按顺序在宿主安全回合边界应用插话；
+- ☑ 取消复用协作式 token，即使 inbox 满也立即标记；不抢占同步工具。
 
 ## 第 31 章 Checkpoint（已发布为 `chapter-31-parallel-tool-use`）
 
