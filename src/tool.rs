@@ -1,6 +1,6 @@
 use crate::{filesystem::Workspace, llm::ToolDefinition, shell::WorkspaceInspector};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 /// 一个编译进宿主程序的本地工具。
 ///
@@ -8,7 +8,18 @@ use std::collections::BTreeMap;
 /// 完整 JSON Schema 引擎。
 pub trait Tool: Send + Sync {
     fn definition(&self) -> ToolDefinition;
+    /// Tools are serial unless they explicitly opt in. This is deliberately conservative:
+    /// workspace, shell, and network tools must never become concurrent by accident.
+    fn execution(&self) -> ToolExecution {
+        ToolExecution::Serial
+    }
     fn execute(&self, arguments: Value) -> Result<Value, ToolError>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ToolExecution {
+    Serial,
+    ParallelSafe,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -45,7 +56,7 @@ impl ToolError {
 /// 使导出给模型的工具定义顺序稳定，便于测试和重现请求。
 #[derive(Default)]
 pub struct ToolRegistry {
-    tools: BTreeMap<String, Box<dyn Tool>>,
+    tools: BTreeMap<String, Arc<dyn Tool>>,
 }
 
 impl ToolRegistry {
@@ -58,16 +69,28 @@ impl ToolRegistry {
         if self.tools.contains_key(&definition.name) {
             return Err(ToolError::DuplicateName(definition.name));
         }
-        self.tools.insert(definition.name, Box::new(tool));
+        self.tools.insert(definition.name, Arc::new(tool));
         Ok(())
     }
 
     pub fn get(&self, name: &str) -> Option<&dyn Tool> {
-        self.tools.get(name).map(Box::as_ref)
+        self.tools.get(name).map(Arc::as_ref)
     }
 
     pub fn definitions(&self) -> Vec<ToolDefinition> {
         self.tools.values().map(|tool| tool.definition()).collect()
+    }
+
+    pub fn is_parallel_safe(&self, name: &str) -> bool {
+        self.get(name)
+            .is_some_and(|tool| tool.execution() == ToolExecution::ParallelSafe)
+    }
+
+    pub(crate) fn tool_for_parallel(&self, name: &str) -> Result<Arc<dyn Tool>, ToolError> {
+        self.tools
+            .get(name)
+            .cloned()
+            .ok_or_else(|| ToolError::UnknownTool(name.into()))
     }
 
     /// 查找、解析原始 arguments 并执行工具。工具实现负责字段级校验。

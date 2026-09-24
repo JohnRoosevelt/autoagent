@@ -94,7 +94,7 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 31 | Parallel Tool Use | 声明工具并发安全性，并在 Agent Loop 中并行分发独立调用。 |
+| ☑ | 31 | Parallel Tool Use | 工具默认串行；只有显式标记为并发安全的调用才经有界本地 executor 并发分发，结果保持请求顺序。 |
 | ☐ | 32 | Steering | 支持运行中插话、收件箱、回合边界与安全取消。 |
 | ☐ | 33 | Prompt Caching / Cost | 保持稳定前缀以利用缓存，并记录 token、缓存与模型成本。 |
 | ☐ | 34 | Guardrails | 将外部内容视为数据而非指令，并对密钥和敏感内容做出站过滤。 |
@@ -112,6 +112,13 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 31 章 Checkpoint
+
+- ☑ `Tool` 以默认串行的 `ToolExecution` metadata 表示并发安全性；
+- ☑ `execute_safe_batch` 仅并发执行显式 `ParallelSafe` 工具，拒绝零并发上限，并保持输入结果顺序；
+- ☑ 不自动并行文件、命令或网络工具，不更改既有 Agent 串行工具协议；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
 ## 第 30 章 Checkpoint
 

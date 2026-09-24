@@ -26,6 +26,8 @@ mod model_router;
 #[allow(dead_code)]
 mod observability;
 #[allow(dead_code)]
+mod parallel;
+#[allow(dead_code)]
 mod permission;
 #[allow(dead_code)]
 mod plugins;
