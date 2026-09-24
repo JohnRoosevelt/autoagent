@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义，以及具有明确 context 边界的最小 Subagent wrapper，以及显式分级 Markdown Memory 注入，以及外置大对象的 Artifact refs，以及工具调用前后的 Hooks，以及模型调用边界 Middleware，以及 manifest/registry-only Plugins convention，以及 defaults < local file < environment 的非私密 Configuration，以及 default-deny Permission approvals，以及拒绝 untrusted execution 的 declarative Sandbox profile，以及 local-test-double-only MCP JSON-RPC protocol，以及不改写账本的 local Compaction request view。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义，以及具有明确 context 边界的最小 Subagent wrapper，以及显式分级 Markdown Memory 注入，以及外置大对象的 Artifact refs，以及工具调用前后的 Hooks，以及模型调用边界 Middleware，以及 manifest/registry-only Plugins convention，以及 defaults < local file < environment 的非私密 Configuration，以及 default-deny Permission approvals，以及拒绝 untrusted execution 的 declarative Sandbox profile，以及 local-test-double-only MCP JSON-RPC protocol，以及不改写账本的 local Compaction request view，以及不执行任务的 in-memory Job scheduler。
 
 ## 学习路线
 
@@ -59,6 +59,7 @@
 │   ├── sandbox.rs       # declarative profile；不执行不可信代码
 │   ├── mcp.rs           # JSON-RPC protocol；仅 local test double
 │   ├── compaction.rs    # local summary replacement request view
+│   ├── scheduler.rs     # in-memory job state；不执行 worker
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -161,6 +162,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 26 章范围
+
+`JobScheduler` 提供稳定 ID 的内存 job enqueue、查询和 cancel 状态转换。它不创建 worker、执行任务、持久化或恢复任务。
 
 ## 第 25 章范围
 

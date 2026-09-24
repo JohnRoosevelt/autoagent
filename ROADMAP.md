@@ -75,7 +75,7 @@
 | ☑ | 23 | Sandbox | 通过操作系统级或容器级隔离限制 Agent 的实际能力边界。 |
 | ☑ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
 | ☑ | 25 | Compaction (`/compact`) | 在上下文装不下时，用摘要替换旧历史并保留任务关键事实。 |
-| ☐ | 26 | Job / Scheduler | 将长任务放入后台队列执行，并查询、取消或恢复任务。 |
+| ☑ | 26 | Job / Scheduler | 将长任务放入后台队列执行，并查询、取消或恢复任务。 |
 | ☐ | 27 | Model Router | 在多个模型供应商之间选路、降级和回退。 |
 | ☐ | 28 | Observability | 用 trace、span、日志、指标记录 Agent 的执行过程。 |
 | ☐ | 29 | Evaluation | 为 Agent 行为建立可重复执行的任务评测与回归测试。 |
@@ -330,4 +330,12 @@
 
 ## 当前下一步
 
-进入 **第 26 章 · Job / Scheduler**。
+## 第 26 章 Checkpoint
+
+- ☑ 以确定性内存状态机支持 job enqueue、query 和 cancel；
+- ☑ 不启动后台 worker、不执行或恢复 job；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 27 章 · Model Router**。

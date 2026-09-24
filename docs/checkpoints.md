@@ -32,6 +32,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 23 | `chapter-23-sandbox` | Sandbox：声明受限 profile，拒绝 untrusted execution。 |
 | 24 | `chapter-24-mcp` | MCP：JSON-RPC protocol 与 local test double。 |
 | 25 | `chapter-25-compaction` | Compaction：local summary replacement request view。 |
+| 26 | `chapter-26-job-scheduler` | Job / Scheduler：in-memory enqueue/query/cancel state machine。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -128,6 +129,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 caller-supplied summary 替换旧请求历史；
 - ☑ 不调用模型，不改写完整账本。
+
+## 第 26 章 Checkpoint（已发布为 `chapter-26-job-scheduler`）
+
+- ☑ 内存 job 的 enqueue、query、cancel；
+- ☑ 不执行、恢复或调度后台任务。
 
 ## 查看 Tag
 
