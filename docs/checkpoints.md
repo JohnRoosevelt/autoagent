@@ -18,6 +18,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 09 | `chapter-09-context-manager` | Context Manager：按消息预算裁剪模型请求并保持工具交换原子性。 |
 | 10 | `chapter-10-session-resume` | Session / Resume：版本化确定性 JSON 的会话保存与恢复。 |
 | 11 | `chapter-11-filesystem-tools` | Filesystem 工具：受工作区根目录约束的安全文件访问。 |
+| 12 | `chapter-12-shell-git-tools` | Shell / Git 工具：离线、allowlist 的只读工作区检查。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -42,6 +43,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ canonical 工作区约束、绝对路径/`..` traversal 拒绝与已有目标 symlink 检查；
 - ☑ 列目录、读文件、创建与显式覆盖；不包含删除或重命名。
+
+## 第 12 章 Checkpoint（已发布为 `chapter-12-shell-git-tools`）
+
+- ☑ 固定 allowlist 的 Cargo/Git 检查，无 shell 或任意命令；
+- ☑ Cargo 离线运行，Git 子命令为只读检查；拒绝破坏性与网络命令。
 
 ## 查看 Tag
 

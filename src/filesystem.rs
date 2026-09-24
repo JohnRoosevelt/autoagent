@@ -32,6 +32,9 @@ impl Workspace {
                 .map_err(WorkspaceError::InvalidRoot)?,
         })
     }
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
 
     pub fn list(&self, path: &str) -> Result<Vec<String>, WorkspaceError> {
         let directory = self.resolve_existing(path)?;

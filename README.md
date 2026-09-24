@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，以及受工作区根目录约束的文件工具。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具。
 
 ## 学习路线
 
@@ -30,6 +30,7 @@
 - 可通过 `Agent::with_history_message_budget` 在每个模型调用边界限制发送历史消息数；system 消息始终保留，assistant `tool_calls` 与紧随的 tool 结果作为不可分割单元裁剪，并以 `AgentEvent::ContextTrimmed` 公开裁剪数量。
 - 使用版本化、确定性 JSON 保存会话账本、待处理输入、可恢复执行配置与已完成运行报告；加载会拒绝未知版本，恢复时由宿主重新注入模型和本地工具；
 - 在 canonical workspace root 内列出、读取、创建和显式覆盖 UTF-8 文件；拒绝绝对路径、`..` traversal 和经 symlink 逃逸的已有目标，且不提供删除/重命名；
+- `run_inspection` 仅运行离线 `cargo check`/`cargo test` 与只读 `git status`/`diff`/`log`；不接受 shell 或任意命令；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -43,6 +44,7 @@
 │   ├── filesystem.rs    # 受 canonical workspace root 约束的文件访问
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
 │   ├── session.rs       # 版本化 JSON Session：捕获、保存、加载与恢复 Agent 状态
+│   ├── shell.rs         # allowlist 的离线 Cargo / 只读 Git 工作区检查
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -135,6 +137,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 12 章范围
+
+本章提供 `run_inspection`：命令名只能是 `cargo_check`、`cargo_test`、`git_status`、`git_diff` 或 `git_log`。实现直接执行固定 program/arguments，而非 shell；Cargo 命令附加 `--offline`，Git 命令均为只读检查。任何其他命令（特别是 `git reset`、`git clean`、`rm`、网络工具或带参数的任意 shell 命令）都会被拒绝。本章不实现终端、任意进程执行、命令审批或网络访问。
 
 ## 第 11 章范围
 

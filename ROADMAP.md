@@ -47,7 +47,7 @@
 | ☑ | 09 | Context Manager | 在模型调用边界按消息预算裁剪请求历史，保留 system 与完整 tool-call 交换。 |
 | ☑ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
 | ☑ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
-| ☐ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
+| ☑ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
 | ☐ | 13 | Command / TUI | 增加斜杠命令与终端交互界面。 |
 
 ## 第三幕 · 生长（14–20）
@@ -213,4 +213,13 @@
 
 ## 当前下一步
 
-进入 **第 12 章 · Shell / Git 工具**，提供受控的本地检查命令。
+## 第 12 章 Checkpoint
+
+- ☑ 新增 workspace-bound `run_inspection`，只允许 `cargo_check`、`cargo_test`、`git_status`、`git_diff`、`git_log` 五种固定检查；
+- ☑ 不经 shell 解析用户字符串；Cargo 使用 `--offline`，Git 只允许只读检查，拒绝任意命令、网络与破坏性子命令；
+- ☑ 离线测试覆盖 allowlist 解析与任意命令拒绝；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 13 章 · Command / TUI**，增加最小 CLI 命令和交互入口。

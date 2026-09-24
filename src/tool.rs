@@ -1,4 +1,4 @@
-use crate::{filesystem::Workspace, llm::ToolDefinition};
+use crate::{filesystem::Workspace, llm::ToolDefinition, shell::WorkspaceInspector};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -133,6 +133,9 @@ pub struct CreateFileTool {
 pub struct OverwriteFileTool {
     workspace: Workspace,
 }
+pub struct RunInspectionTool {
+    inspector: WorkspaceInspector,
+}
 
 impl ListFilesTool {
     pub fn new(workspace: Workspace) -> Self {
@@ -152,6 +155,13 @@ impl CreateFileTool {
 impl OverwriteFileTool {
     pub fn new(workspace: Workspace) -> Self {
         Self { workspace }
+    }
+}
+impl RunInspectionTool {
+    pub fn new(workspace: Workspace) -> Self {
+        Self {
+            inspector: WorkspaceInspector::new(workspace),
+        }
     }
 }
 
@@ -210,6 +220,24 @@ impl Tool for CreateFileTool {
         Ok(json!({"created": path}))
     }
 }
+impl Tool for RunInspectionTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition::new(
+            "run_inspection",
+            "在工作区运行固定的只读检查：cargo_check、cargo_test、git_status、git_diff 或 git_log。",
+            json!({"type":"object","properties":{"command":{"type":"string","enum":["cargo_check","cargo_test","git_status","git_diff","git_log"]}},"required":["command"],"additionalProperties":false}),
+        )
+    }
+    fn execute(&self, arguments: Value) -> Result<Value, ToolError> {
+        let command = string_argument(arguments, "command")?;
+        let output = self
+            .inspector
+            .run_named(&command)
+            .map_err(|error| ToolError::Execution(error.to_string()))?;
+        Ok(json!({"success": output.success, "stdout": output.stdout, "stderr": output.stderr}))
+    }
+}
+
 impl Tool for OverwriteFileTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition::new(

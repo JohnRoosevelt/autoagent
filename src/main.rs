@@ -5,6 +5,7 @@ mod llm;
 mod message;
 #[allow(dead_code)]
 mod session;
+mod shell;
 mod tool;
 
 use agent::{Agent, AgentEvent, RetryPolicy};
@@ -14,7 +15,8 @@ use message::{Conversation, Role};
 use std::{io::Write, time::Duration};
 use tokio::sync::mpsc;
 use tool::{
-    CreateFileTool, GetWeatherTool, ListFilesTool, OverwriteFileTool, ReadFileTool, ToolRegistry,
+    CreateFileTool, GetWeatherTool, ListFilesTool, OverwriteFileTool, ReadFileTool,
+    RunInspectionTool, ToolRegistry,
 };
 
 // 属性宏：把 async main 改写成同步 main，并在内部构建/启动 tokio 运行时
@@ -31,7 +33,8 @@ async fn main() -> anyhow::Result<()> {
     tools.register(ListFilesTool::new(workspace.clone()))?;
     tools.register(ReadFileTool::new(workspace.clone()))?;
     tools.register(CreateFileTool::new(workspace.clone()))?;
-    tools.register(OverwriteFileTool::new(workspace))?;
+    tools.register(OverwriteFileTool::new(workspace.clone()))?;
+    tools.register(RunInspectionTool::new(workspace))?;
     let mut agent = Agent::new(client, conversation, 3)?
         .with_tool_registry(tools)
         .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)))
