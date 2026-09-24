@@ -99,7 +99,7 @@
 | ☑ | 33 | Prompt Caching / Cost | 本地确定性稳定前缀指纹和 input/cached/output token 成本核算；不改写 provider 请求。 |
 | ☑ | 34 | Guardrails | 将外部内容标记为数据，检测指令式文本并在出站前 redaction 配置的 secret literals。 |
 | ☑ | 35 | Web Fetch | local safe-fetch policy：HTTPS exact allowlist、拒绝 SSRF URL shape、size cap 与 HTML 转文本；不发真实外网请求。 |
-| ☐ | 36 | RAG / Embedding | 将文本转为向量，检索相近内容，并作为普通工具返回结果。 |
+| ☑ | 36 | RAG / Embedding | 本地确定性 token-overlap retrieval，稳定排序返回文本；不依赖外部 embedding 或 vector DB。 |
 | ☐ | 37 | Agent as Service | 将会话实现为 actor，并通过 SSE 等方式向客户端推送事件。 |
 
 ## 终幕 · 收官与对照（38–39）
@@ -112,6 +112,12 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 36 章 Checkpoint
+
+- ☑ local retriever 使用归一化 token overlap，稳定 score/id 排序并限制结果数量；
+- ☑ 不调用 embedding API、不使用数据库或远端向量服务；
+- ☑ 完整 Rust 质量门禁通过。
 
 ## 第 35 章 Checkpoint
 

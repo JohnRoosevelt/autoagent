@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义，以及具有明确 context 边界的最小 Subagent wrapper，以及显式分级 Markdown Memory 注入，以及外置大对象的 Artifact refs，以及工具调用前后的 Hooks，以及模型调用边界 Middleware，以及 manifest/registry-only Plugins convention，以及 defaults < local file < environment 的非私密 Configuration，以及 default-deny Permission approvals，以及拒绝 untrusted execution 的 declarative Sandbox profile，以及 local-test-double-only MCP JSON-RPC protocol，以及不改写账本的 local Compaction request view，以及不执行任务的 in-memory Job scheduler，以及 provider-agnostic Model Router candidates，以及 local structured Observability spans，以及 repeatable local Evaluation cases，以及以 `AgentBuilder`/`App` 组合配置、权限、工作区工具和既有事件流的最小 Framework，以及默认串行、仅显式 `ParallelSafe` 工具可通过有界 executor 并发的安全并行分发，以及在安全回合边界应用的有界 Steering inbox，以及本地稳定前缀与 token/cached-token 成本核算，以及将外部内容作为数据的出站 secret redaction guardrail，以及无真实外网请求的 safe Web Fetch policy/parser。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义，以及具有明确 context 边界的最小 Subagent wrapper，以及显式分级 Markdown Memory 注入，以及外置大对象的 Artifact refs，以及工具调用前后的 Hooks，以及模型调用边界 Middleware，以及 manifest/registry-only Plugins convention，以及 defaults < local file < environment 的非私密 Configuration，以及 default-deny Permission approvals，以及拒绝 untrusted execution 的 declarative Sandbox profile，以及 local-test-double-only MCP JSON-RPC protocol，以及不改写账本的 local Compaction request view，以及不执行任务的 in-memory Job scheduler，以及 provider-agnostic Model Router candidates，以及 local structured Observability spans，以及 repeatable local Evaluation cases，以及以 `AgentBuilder`/`App` 组合配置、权限、工作区工具和既有事件流的最小 Framework，以及默认串行、仅显式 `ParallelSafe` 工具可通过有界 executor 并发的安全并行分发，以及在安全回合边界应用的有界 Steering inbox，以及本地稳定前缀与 token/cached-token 成本核算，以及将外部内容作为数据的出站 secret redaction guardrail，以及无真实外网请求的 safe Web Fetch policy/parser，以及确定性本地 RAG-style retrieval。
 
 ## 学习路线
 
@@ -69,6 +69,7 @@
 │   ├── cost.rs          # stable prefix fingerprint 与本地 token 成本核算
 │   ├── guardrails.rs    # outbound untrusted-content 与 secret filtering
 │   ├── web.rs           # strict allowlist/size safe-fetch policy 与本地 HTML text
+│   ├── rag.rs           # deterministic local token-overlap retrieval
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -171,6 +172,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 36 章范围
+
+`LocalRetriever` 对调用方提供的文档和 query 做确定性、大小写无关的 token overlap 排序。它是可离线测试的最小检索边界，不生成真实 embedding、不使用 vector database，也不自动注入模型上下文。
 
 ## 第 35 章范围
 
