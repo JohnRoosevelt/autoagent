@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复。
 
 ## 学习路线
 
@@ -28,6 +28,7 @@
 - 工具调用 arguments 在执行前解析为 JSON，并由工具完成最小字段校验；成功或失败结果均作为关联 `tool_call_id` 的 `role: tool` 消息回填，随后继续 Agent Loop；
 - 以“没有待处理输入”或“达到最大模型调用步数”明确结束 Agent 运行；工具执行本身不额外计步。
 - 可通过 `Agent::with_history_message_budget` 在每个模型调用边界限制发送历史消息数；system 消息始终保留，assistant `tool_calls` 与紧随的 tool 结果作为不可分割单元裁剪，并以 `AgentEvent::ContextTrimmed` 公开裁剪数量。
+- 使用版本化、确定性 JSON 保存会话账本、待处理输入、可恢复执行配置与已完成运行报告；加载会拒绝未知版本，恢复时由宿主重新注入模型和本地工具；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
 ## 项目结构
@@ -39,6 +40,7 @@
 │   ├── agent.rs         # Agent Loop：会话状态、生命周期事件、重试/取消、上下文边界、模型流转发与回复回填
 │   ├── context.rs       # Context Manager：按消息预算生成协议安全的模型请求历史
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
+│   ├── session.rs       # 版本化 JSON Session：捕获、保存、加载与恢复 Agent 状态
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -131,6 +133,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 10 章范围
+
+本章提供 `Session`：以稳定字段顺序的版本化 JSON 保存完整会话消息、待处理输入、已用步数、重试与历史预算配置，以及已完成的 `RunReport`。`Session::restore` 只重建可序列化的 Agent 状态，模型与本地 `ToolRegistry` 必须由宿主进程重新注入，避免将密钥、运行时 channel 或不可重建的工具实例写入磁盘。本章不实现会话目录管理、加密、并发锁、自动保存或跨机器同步。
 
 ## 第 09 章范围
 

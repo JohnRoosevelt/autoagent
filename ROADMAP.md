@@ -45,7 +45,7 @@
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
 | ☑ | 09 | Context Manager | 在模型调用边界按消息预算裁剪请求历史，保留 system 与完整 tool-call 交换。 |
-| ☐ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
+| ☑ | 10 | Session / Resume | 将历史、状态和执行记录持久化；进程重启后可以恢复会话。 |
 | ☐ | 11 | Filesystem 工具 | 安全地列出、读取、创建和修改工作区文件。 |
 | ☐ | 12 | Shell / Git 工具 | 运行受控命令、查看测试结果与 Git 状态，为 coding agent 提供手和脚。 |
 | ☐ | 13 | Command / TUI | 增加斜杠命令与终端交互界面。 |
@@ -193,6 +193,14 @@
 - ☑ 不实现摘要、额外模型调用、token 精确计数、向量数据库或长期记忆；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 10 章 Checkpoint
+
+- ☑ 使用版本化、确定性 JSON 持久化完整消息账本、待处理输入、可恢复的步数/重试/上下文预算配置及已完成运行报告；
+- ☑ `Session::load` 在恢复前拒绝未知格式版本，`Session::restore` 以注入的模型重建 Agent；本地 Tool Registry 保持进程级，由宿主重新附加；
+- ☑ 离线测试覆盖 JSON 的确定性写入、待处理输入与历史恢复、未知版本拒绝；
+- ☑ 不持久化 API key、模型客户端、取消令牌、事件 channel 或动态工具实例；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 10 章 · Session / Resume**，持久化历史、状态和执行记录以支持恢复会话。
+进入 **第 11 章 · Filesystem 工具**，在受配置工作区根目录约束的前提下安全读写文件。

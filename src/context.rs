@@ -21,6 +21,11 @@ impl ContextManager {
         Self { max_messages }
     }
 
+    #[allow(dead_code)]
+    pub fn max_messages(&self) -> usize {
+        self.max_messages
+    }
+
     pub fn window(&self, history: &[Message]) -> ContextWindow {
         let system_count = history
             .iter()

@@ -1,8 +1,8 @@
 use crate::llm::ToolCall;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// OpenAI Chat Completions 协议支持的消息角色。
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     System,
@@ -73,6 +73,11 @@ pub struct Conversation {
 }
 
 impl Conversation {
+    #[allow(dead_code)]
+    pub fn from_messages(messages: Vec<Message>) -> Self {
+        Self { messages }
+    }
+
     pub fn new() -> Self {
         Self::default()
     }

@@ -2,6 +2,8 @@ mod agent;
 mod context;
 mod llm;
 mod message;
+#[allow(dead_code)]
+mod session;
 mod tool;
 
 use agent::{Agent, AgentEvent, RetryPolicy};

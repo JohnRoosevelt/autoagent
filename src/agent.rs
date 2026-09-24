@@ -4,6 +4,7 @@ use crate::{
     message::{Conversation, Message},
     tool::{ToolError, ToolRegistry},
 };
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::VecDeque,
@@ -96,7 +97,7 @@ impl Default for RetryPolicy {
 }
 
 /// 一次 Agent 运行结束的明确原因。
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum TerminationReason {
     NoPendingInput,
     MaxStepsReached,
@@ -131,7 +132,7 @@ pub enum AgentEvent {
 }
 
 /// 一次运行的摘要，供调用方记录和显示。
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RunReport {
     /// 完整成功并已处理响应的模型回合数；失败尝试与工具执行不单独计 step。
     pub steps_taken: usize,
@@ -173,6 +174,7 @@ pub struct Agent<M> {
     retry_policy: RetryPolicy,
     context_manager: ContextManager,
     state: AgentState,
+    run_reports: Vec<RunReport>,
 }
 
 impl<M: StreamChatModel> Agent<M> {
@@ -190,6 +192,7 @@ impl<M: StreamChatModel> Agent<M> {
             retry_policy: RetryPolicy::default(),
             context_manager: ContextManager::new(usize::MAX),
             state: AgentState::Ready,
+            run_reports: Vec::new(),
         })
     }
 
@@ -224,6 +227,57 @@ impl<M: StreamChatModel> Agent<M> {
     #[allow(dead_code)]
     pub fn state(&self) -> AgentState {
         self.state
+    }
+
+    #[allow(dead_code)]
+    pub fn session_data(
+        &self,
+    ) -> (
+        Vec<Message>,
+        Vec<String>,
+        usize,
+        usize,
+        RetryPolicy,
+        usize,
+        Vec<RunReport>,
+    ) {
+        (
+            self.conversation.messages().to_vec(),
+            self.pending_inputs.iter().cloned().collect(),
+            self.max_steps,
+            self.steps_taken,
+            self.retry_policy.clone(),
+            self.context_manager.max_messages(),
+            self.run_reports.clone(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments, dead_code)]
+    pub fn from_session_data(
+        model: M,
+        messages: Vec<Message>,
+        pending_inputs: Vec<String>,
+        max_steps: usize,
+        steps_taken: usize,
+        retry_policy: RetryPolicy,
+        history_message_budget: usize,
+        run_reports: Vec<RunReport>,
+    ) -> Result<Self, AgentError> {
+        if max_steps == 0 {
+            return Err(AgentError::InvalidMaxSteps);
+        }
+        Ok(Self {
+            model,
+            conversation: Conversation::from_messages(messages),
+            tools: ToolRegistry::new(),
+            pending_inputs: pending_inputs.into(),
+            max_steps,
+            steps_taken,
+            retry_policy,
+            context_manager: ContextManager::new(history_message_budget),
+            state: AgentState::Ready,
+            run_reports,
+        })
     }
 
     /// 使用一个永不取消的令牌运行。
@@ -597,13 +651,15 @@ impl<M: StreamChatModel> Agent<M> {
         retries: usize,
     ) -> RunReport {
         self.state = AgentState::Stopped(termination);
-        RunReport {
+        let report = RunReport {
             steps_taken: self.steps_taken,
             termination,
             tool_calls_processed,
             model_attempts,
             retries,
-        }
+        };
+        self.run_reports.push(report.clone());
+        report
     }
 }
 

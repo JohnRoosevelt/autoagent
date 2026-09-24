@@ -16,6 +16,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 07 | `chapter-07-retry-cancel` | Retry / Cancel：有限确定性 retry/backoff 与应用内协作式取消。 |
 | 08 | `chapter-08-event-lifecycle` | Event / Lifecycle：以最小 `AgentEvent` 统一 Agent 生命周期与已解析模型流。 |
 | 09 | `chapter-09-context-manager` | Context Manager：按消息预算裁剪模型请求并保持工具交换原子性。 |
+| 10 | `chapter-10-session-resume` | Session / Resume：版本化确定性 JSON 的会话保存与恢复。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -29,6 +30,12 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 - ☑ system 消息优先保留，assistant `tool_calls` 与连续 tool 结果作为不可分割单元；
 - ☑ 以 `AgentEvent::ContextTrimmed` 暴露每次裁剪数量；
 - ☑ 不包含摘要、额外模型调用、token 精确计数或向量数据库。
+
+## 第 10 章 Checkpoint（已发布为 `chapter-10-session-resume`）
+
+- ☑ 持久化会话账本、待处理输入、可恢复配置与执行报告；
+- ☑ 用版本化确定性 JSON 往返恢复，拒绝未知版本；
+- ☑ 不持久化密钥、模型客户端或本地工具实例。
 
 ## 查看 Tag
 
