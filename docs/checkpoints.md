@@ -36,6 +36,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 27 | `chapter-27-model-router` | Model Router：deterministic primary/fallback candidates。 |
 | 28 | `chapter-28-observability` | Observability：local structured span recorder。 |
 | 29 | `chapter-29-evaluation` | Evaluation：repeatable injected local case harness。 |
+| 30 | `chapter-30-framework` | Framework：最小 `AgentBuilder`/`App` 组合配置、策略、工作区工具与既有事件流。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -152,6 +153,12 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 30 章 Checkpoint（已发布为 `chapter-30-framework`）
+
+- ☑ `AgentBuilder`/`App` 只组合已稳定的 model、config、policy、workspace tools 与既有 `AgentEvent` channel；
+- ☑ 默认只暴露确定性/只读工具；文件写入、工作区 inspection 与模型网络运行需显式 capability；
+- ☑ 不引入新 event bus、动态插件或替代现有 `Agent` API。
 
 ## 查看 Tag
 

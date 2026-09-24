@@ -220,6 +220,12 @@ impl<M: StreamChatModel> Agent<M> {
     pub fn conversation(&self) -> &Conversation {
         &self.conversation
     }
+
+    /// Returns the stable tool definitions exposed to the model for this Agent.
+    #[allow(dead_code)]
+    pub fn tool_definitions(&self) -> Vec<ToolDefinition> {
+        self.tools.definitions()
+    }
     #[allow(dead_code)]
     pub fn pending_input_count(&self) -> usize {
         self.pending_inputs.len()

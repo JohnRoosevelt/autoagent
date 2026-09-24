@@ -1,5 +1,6 @@
 use crate::{
     agent::StreamChatModel,
+    configuration::AppConfig,
     llm::{ChatResponse, FinishReason, LlmError, StreamEvent, ToolCall, ToolDefinition, Usage},
     message::Message,
 };
@@ -15,19 +16,29 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
+    #[allow(dead_code)]
     pub fn from_env() -> Result<Self, LlmError> {
+        let config = AppConfig {
+            model: std::env::var("AGENT_MODEL").unwrap_or_else(|_| "openrouter/free".into()),
+            base_url: std::env::var("AGENT_BASE_URL")
+                .unwrap_or_else(|_| "https://openrouter.ai/api/v1".into()),
+            ..AppConfig::default()
+        };
+        Self::from_config(&config)
+    }
+
+    /// Creates a client from non-secret application settings; the API key stays in the environment.
+    pub fn from_config(config: &AppConfig) -> Result<Self, LlmError> {
         let api_key = std::env::var("AGENT_API_KEY")
             .map_err(|_| LlmError::Config("缺少 AGENT_API_KEY，请在 .env 中设置它".into()))?;
         if api_key.trim().is_empty() {
             return Err(LlmError::Config("AGENT_API_KEY 不能为空".into()));
         }
-        let base_url = std::env::var("AGENT_BASE_URL")
-            .unwrap_or_else(|_| "https://openrouter.ai/api/v1".into());
         Ok(Self {
             http: reqwest::Client::new(),
-            base_url: base_url.trim_end_matches('/').to_owned(),
+            base_url: config.base_url.trim_end_matches('/').to_owned(),
             api_key,
-            model: std::env::var("AGENT_MODEL").unwrap_or_else(|_| "openrouter/free".into()),
+            model: config.model.clone(),
         })
     }
 

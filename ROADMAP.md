@@ -86,7 +86,7 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 30 | Framework | 将经过实践验证的模型、工具、循环、状态与事件能力抽象为框架。 |
+| ☑ | 30 | Framework | 以最小 `AgentBuilder`/`App` 组合稳定的配置、权限策略、根目录约束工具与既有 `AgentEvent` 生命周期；默认只读，敏感能力显式批准。 |
 
 ## 第六幕 · 再生长（31–37）
 
@@ -112,6 +112,14 @@
 | ☐ | 39 | 成熟项目对照 | 与 Rig、LangGraph、OpenAI Agents SDK、OpenCode、Codex、Claude Code、pi 等进行设计对照。 |
 
 ---
+
+## 第 30 章 Checkpoint
+
+- ☑ 提供 `AgentBuilder`/`App` 组合模型、`AppConfig`、`PermissionPolicy`、`Workspace` 与既有 Agent Loop；
+- ☑ 默认仅注册确定性或只读工作区工具，文件写入、工作区检查与模型网络运行均需显式 capability 批准；
+- ☑ 不引入第二套 event bus、动态插件系统或替换既有 `Agent` API；
+- ☑ 为默认安全工具集、显式能力扩展和拒绝未批准网络运行补充测试；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
 ## 第 01 章 Checkpoint
 

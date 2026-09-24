@@ -10,6 +10,7 @@ mod context;
 #[allow(dead_code)]
 mod evaluation;
 mod filesystem;
+mod framework;
 #[allow(dead_code)]
 mod hooks;
 mod llm;
@@ -41,17 +42,16 @@ mod skills;
 mod subagent;
 mod tool;
 
-use agent::{Agent, AgentEvent, RetryPolicy};
+use agent::{AgentEvent, RetryPolicy};
 use command::Command;
+use configuration::AppConfig;
 use filesystem::Workspace;
+use framework::AgentBuilder;
 use llm::{FinishReason, StreamEvent, client::LlmClient};
-use message::{Conversation, Role};
-use std::{io::Write, time::Duration};
+use message::Role;
+use permission::{Capability, PermissionPolicy};
+use std::{collections::BTreeMap, io::Write, time::Duration};
 use tokio::sync::mpsc;
-use tool::{
-    CreateFileTool, GetWeatherTool, ListFilesTool, OverwriteFileTool, ReadFileTool,
-    RunInspectionTool, ToolRegistry,
-};
 
 // 属性宏：把 async main 改写成同步 main，并在内部构建/启动 tokio 运行时
 #[tokio::main]
@@ -70,24 +70,24 @@ async fn main() -> anyhow::Result<()> {
         Command::Exit => return Ok(()),
         Command::Prompt(prompt) => prompt,
     };
-    let client = LlmClient::from_env()?;
+    let environment = std::env::vars().collect::<BTreeMap<_, _>>();
+    let config = AppConfig::load(None, &environment)?;
+    let client = LlmClient::from_config(&config)?;
     println!("model = {}", client.model);
 
-    let mut conversation = Conversation::new();
-    conversation.add_system("你是一个简洁、准确的助手。");
-    let mut tools = ToolRegistry::new();
-    tools.register(GetWeatherTool)?;
+    // The CLI preserves its existing workspace-tool surface by explicitly approving it.
+    let policy = PermissionPolicy::deny_all()
+        .allow(Capability::FileWrite)
+        .allow(Capability::CommandExecution)
+        .allow(Capability::NetworkAccess);
     let workspace = Workspace::new(std::env::current_dir()?)?;
-    tools.register(ListFilesTool::new(workspace.clone()))?;
-    tools.register(ReadFileTool::new(workspace.clone()))?;
-    tools.register(CreateFileTool::new(workspace.clone()))?;
-    tools.register(OverwriteFileTool::new(workspace.clone()))?;
-    tools.register(RunInspectionTool::new(workspace))?;
-    let mut agent = Agent::new(client, conversation, 3)?
-        .with_tool_registry(tools)
+    let mut app = AgentBuilder::new(client, config, workspace)
+        .with_policy(policy)
+        .with_system_prompt("你是一个简洁、准确的助手。")
         .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)))
-        .with_history_message_budget(32);
-    agent.enqueue_user(prompt);
+        .with_history_message_budget(32)
+        .build()?;
+    app.enqueue_user(prompt);
 
     let (tx, mut rx) = mpsc::channel(32);
     let renderer = tokio::spawn(async move {
@@ -130,9 +130,9 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let report = agent.run(tx).await?;
+    let report = app.run(tx).await?;
     renderer.await?;
-    for message in agent.conversation().messages() {
+    for message in app.agent().conversation().messages() {
         if message.role == Role::Tool {
             println!(
                 "工具结果 {}: {}",
