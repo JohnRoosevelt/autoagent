@@ -70,7 +70,7 @@
 
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
-| ☐ | 21 | Configuration | 实现默认值 < 文件 < 环境变量的分层配置；私密信息不进入仓库。 |
+| ☑ | 21 | Configuration | 实现默认值 < 文件 < 环境变量的分层配置；私密信息不进入仓库。 |
 | ☐ | 22 | Permission | 对文件写入、删除、命令执行和网络访问建立审批关卡。 |
 | ☐ | 23 | Sandbox | 通过操作系统级或容器级隔离限制 Agent 的实际能力边界。 |
 | ☐ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
@@ -289,4 +289,13 @@
 
 ## 当前下一步
 
-进入 **第 21 章 · Configuration**。
+## 第 21 章 Checkpoint
+
+- ☑ `AppConfig` 按 defaults < local file < environment 合并非私密运行设置；
+- ☑ 解析拒绝无效配置行和非正步数，测试不依赖进程环境；
+- ☑ 不读取、持久化或显示 API key；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 22 章 · Permission**。

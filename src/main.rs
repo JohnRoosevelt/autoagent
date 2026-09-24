@@ -2,6 +2,8 @@ mod agent;
 #[allow(dead_code)]
 mod artifact;
 mod command;
+#[allow(dead_code)]
+mod configuration;
 mod context;
 mod filesystem;
 #[allow(dead_code)]
