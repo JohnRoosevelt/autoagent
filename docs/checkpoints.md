@@ -21,6 +21,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 12 | `chapter-12-shell-git-tools` | Shell / Git 工具：离线、allowlist 的只读工作区检查。 |
 | 13 | `chapter-13-command-tui` | Command / TUI：最小 CLI/slash command 入口。 |
 | 14 | `chapter-14-skills` | Skills：root-confined 的按需 Markdown 定义加载。 |
+| 15 | `chapter-15-subagent` | Subagent：显式 task/context 边界的同步 child wrapper。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -62,6 +63,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 - ☑ Markdown-only 的 `SkillDirectory` 以 canonical root 限制技能定义；
 - ☑ 仅按名称列出和读取，拒绝 traversal、非定义内容与任何代码执行；
 - ☑ 不包含目录自动执行、热加载或动态插件。
+
+## 第 15 章 Checkpoint（已发布为 `chapter-15-subagent`）
+
+- ☑ 子 Agent 仅接收显式任务和复制的上下文；
+- ☑ 使用确定性 test double；不含并发、调度或 parent state 共享。
 
 ## 查看 Tag
 

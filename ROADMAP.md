@@ -57,7 +57,7 @@
 | 状态 | 章节 | 主题 | 本章目标 |
 |---|---:|---|---|
 | ☑ | 14 | Skills | 用受根目录约束、按名称按需加载的 Markdown 说明沉淀任务知识和工作流程。 |
-| ☐ | 15 | Subagent | 将具有独立上下文和任务边界的 Agent 包装成工具。 |
+| ☑ | 15 | Subagent | 将具有显式任务与复制上下文边界的子 Agent 包装为同步委托。 |
 | ☐ | 16 | Memory | 建立分级的长期记忆文件，并在合适时注入上下文。 |
 | ☐ | 17 | Artifact | 将大对象外置到磁盘或存储中，上下文只保留摘要与引用。 |
 | ☐ | 18 | Hooks | 在工具调用前后执行用户定义的回调。 |
@@ -241,4 +241,12 @@
 
 ## 当前下一步
 
-进入 **第 15 章 · Subagent**，探索独立上下文边界的子 Agent 包装。
+## 第 15 章 Checkpoint
+
+- ☑ 新增最小 `Subagent`/`ChildAgent` wrapper，只向 child 传入显式 task 和复制的 context；
+- ☑ 使用确定性 test double 验证委托边界；不共享 parent 状态、不引入并发框架或调度；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 16 章 · Memory**。

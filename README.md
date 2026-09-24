@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop、Tool / Function Calling 协议承接、本地 Tool Registry 分发、最小 Agent 生命周期事件，以及基于消息预算的上下文裁剪、确定性 JSON 会话保存与恢复，受工作区根目录约束的文件工具，以及离线、allowlist 的 Cargo/Git 检查工具，最小 CLI/slash command 入口，以及受根目录约束、按需加载的 Markdown Skills 定义，以及具有明确 context 边界的最小 Subagent wrapper。
 
 ## 学习路线
 
@@ -48,6 +48,7 @@
 │   ├── session.rs       # 版本化 JSON Session：捕获、保存、加载与恢复 Agent 状态
 │   ├── shell.rs         # allowlist 的离线 Cargo / 只读 Git 工作区检查
 │   ├── skills.rs        # root-confined 的按需 Markdown Skills 定义
+│   ├── subagent.rs      # 显式 task/context 边界的同步 child wrapper
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
 │   └── llm/
@@ -150,6 +151,10 @@ user: 请查询北京现在的天气。请调用 get_weather，不要猜测结�
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 15 章范围
+
+本章提供同步 `Subagent` wrapper。它仅把调用者显式提供的任务和复制后的上下文传给 `ChildAgent`，不共享 parent Agent、会话或工具，不提供并行执行。
 
 ## 第 14 章范围
 
