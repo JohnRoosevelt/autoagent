@@ -30,6 +30,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 21 | `chapter-21-configuration` | Configuration：defaults < file < environment 的非私密设置合并。 |
 | 22 | `chapter-22-permission` | Permission：default-deny 的敏感能力审批。 |
 | 23 | `chapter-23-sandbox` | Sandbox：声明受限 profile，拒绝 untrusted execution。 |
+| 24 | `chapter-24-mcp` | MCP：JSON-RPC protocol 与 local test double。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -116,6 +117,11 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 声明禁网、只读的 sandbox profile；
 - ☑ untrusted execution 一律不可用；无进程或容器启动。
+
+## 第 24 章 Checkpoint（已发布为 `chapter-24-mcp`）
+
+- ☑ MCP JSON-RPC 2.0 initialize protocol 和 manifest；
+- ☑ 只使用 local test double；无外部连接、进程或网络。
 
 ## 查看 Tag
 

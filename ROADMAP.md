@@ -73,7 +73,7 @@
 | ☑ | 21 | Configuration | 实现默认值 < 文件 < 环境变量的分层配置；私密信息不进入仓库。 |
 | ☑ | 22 | Permission | 对文件写入、删除、命令执行和网络访问建立审批关卡。 |
 | ☑ | 23 | Sandbox | 通过操作系统级或容器级隔离限制 Agent 的实际能力边界。 |
-| ☐ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
+| ☑ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
 | ☐ | 25 | Compaction (`/compact`) | 在上下文装不下时，用摘要替换旧历史并保留任务关键事实。 |
 | ☐ | 26 | Job / Scheduler | 将长任务放入后台队列执行，并查询、取消或恢复任务。 |
 | ☐ | 27 | Model Router | 在多个模型供应商之间选路、降级和回退。 |
@@ -314,4 +314,12 @@
 
 ## 当前下一步
 
-进入 **第 24 章 · MCP**。
+## 第 24 章 Checkpoint
+
+- ☑ 定义 JSON-RPC 2.0 MCP initialize 请求/响应和 manifest；
+- ☑ 仅使用本地 transport test double；不启动进程、不接入外部 MCP 或网络；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 25 章 · Compaction**。

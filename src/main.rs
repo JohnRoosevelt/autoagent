@@ -10,6 +10,8 @@ mod filesystem;
 mod hooks;
 mod llm;
 #[allow(dead_code)]
+mod mcp;
+#[allow(dead_code)]
 mod memory;
 mod message;
 #[allow(dead_code)]
