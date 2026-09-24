@@ -74,7 +74,7 @@
 | ☑ | 22 | Permission | 对文件写入、删除、命令执行和网络访问建立审批关卡。 |
 | ☑ | 23 | Sandbox | 通过操作系统级或容器级隔离限制 Agent 的实际能力边界。 |
 | ☑ | 24 | MCP | 使用 JSON-RPC 接入跨进程的外部能力与工具服务。 |
-| ☐ | 25 | Compaction (`/compact`) | 在上下文装不下时，用摘要替换旧历史并保留任务关键事实。 |
+| ☑ | 25 | Compaction (`/compact`) | 在上下文装不下时，用摘要替换旧历史并保留任务关键事实。 |
 | ☐ | 26 | Job / Scheduler | 将长任务放入后台队列执行，并查询、取消或恢复任务。 |
 | ☐ | 27 | Model Router | 在多个模型供应商之间选路、降级和回退。 |
 | ☐ | 28 | Observability | 用 trace、span、日志、指标记录 Agent 的执行过程。 |
@@ -322,4 +322,12 @@
 
 ## 当前下一步
 
-进入 **第 25 章 · Compaction**。
+## 第 25 章 Checkpoint
+
+- ☑ 用调用方提供的 summary 替换请求视图中的旧历史，保留最近消息；
+- ☑ 不调用额外模型，不修改原始会话账本；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 26 章 · Job / Scheduler**。

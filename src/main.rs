@@ -3,6 +3,8 @@ mod agent;
 mod artifact;
 mod command;
 #[allow(dead_code)]
+mod compaction;
+#[allow(dead_code)]
 mod configuration;
 mod context;
 mod filesystem;
