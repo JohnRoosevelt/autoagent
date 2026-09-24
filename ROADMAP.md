@@ -60,7 +60,7 @@
 | ☑ | 15 | Subagent | 将具有显式任务与复制上下文边界的子 Agent 包装为同步委托。 |
 | ☑ | 16 | Memory | 建立受根目录约束、由调用方显式选择的分级 Markdown 长期记忆注入。 |
 | ☑ | 17 | Artifact | 将大对象外置到受根目录约束的磁盘文件，上下文只保留引用。 |
-| ☐ | 18 | Hooks | 在工具调用前后执行用户定义的回调。 |
+| ☑ | 18 | Hooks | 以最小 wrapper 在工具调用前后执行本地定义的回调。 |
 | ☐ | 19 | Middleware | 用洋葱式中间件包装模型调用或 Agent 执行流程。 |
 | ☐ | 20 | Plugins | 定义插件目录与注册约定，将可选能力打包和加载。 |
 
@@ -265,4 +265,12 @@
 
 ## 当前下一步
 
-进入 **第 18 章 · Hooks**。
+## 第 18 章 Checkpoint
+
+- ☑ `HookedTool` 在正常 `Tool` 执行前后调用 `ToolHook`；
+- ☑ before 可拒绝，after 可观察结果；不含脚本、全局 event bus 或异步框架；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 19 章 · Middleware**。

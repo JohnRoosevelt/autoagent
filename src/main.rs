@@ -4,6 +4,8 @@ mod artifact;
 mod command;
 mod context;
 mod filesystem;
+#[allow(dead_code)]
+mod hooks;
 mod llm;
 #[allow(dead_code)]
 mod memory;
