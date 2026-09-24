@@ -33,7 +33,7 @@
 | ☑ | 02 | Message / Token / Context | 建立消息历史模型，理解上下文窗口与 token 预算。 |
 | ☑ | 03 | Streaming / SSE | 解析 OpenAI-compatible SSE 增量事件，实时输出文本并在结束后汇总回复与 usage。 |
 | ☑ | 04 | Agent Loop | 以独立 Agent 管理会话、状态与流式调用循环；通过待处理输入和最大步数保护明确结束运行，并为后续工具结果回填预留分支。 |
-| ☐ | 05 | Tool / Function Calling | 让模型按 JSON Schema 请求调用宿主程序提供的函数。 |
+| ☑ | 05 | Tool / Function Calling | 建立 OpenAI-compatible tools/tool_calls 协议模型、请求序列化、非流式与 SSE 解析及 Agent 暂停承接；不执行真实工具。 |
 | ☐ | 06 | Tool Registry | 建立工具注册表、参数校验与工具分发器。 |
 | ☐ | 07 | Retry / Cancel | 处理超时、限流、重试，以及 Ctrl+C 取消和资源清理。 |
 | ☐ | 08 | Event / Lifecycle | 用事件描述 Agent 发生了什么，让核心逻辑与显示层解耦。 |
@@ -148,6 +148,15 @@
 - ☑ 保持 SSE 解析在 LLM 客户端，未提前引入 tool calls、JSON Schema、Tool Registry 或工具执行；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 05 章 Checkpoint
+
+- ☑ 定义工具声明、工具调用、finish reason，并支持 assistant `tool_calls` 消息及未来 `role: tool` 的最小消息形状；
+- ☑ 仅在有工具时发送标准 OpenAI-compatible `tools` 请求字段，保留流式 `stream` 与 `stream_options.include_usage`；
+- ☑ 解析非流式和 SSE 流式文本、usage、finish reason 与分块 tool calls，并在客户端完成聚合；
+- ☑ Agent 完整回填 assistant 工具调用后显式停止为 `ToolCallsRequested`，不执行工具；
+- ☑ 以离线测试覆盖请求、null content、多调用、分块 arguments、消息入账和 Agent 暂停；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 05 章 · Tool / Function Calling**，让模型表达工具请求，并在 Agent 回填 assistant 回复后增加“执行工具 → 写入 tool result → 继续”的分支。
+进入 **第 06 章 · Tool Registry**，在 Agent 的 `ToolCallsRequested` 暂停点接入工具注册、参数校验、执行、`role: tool` 结果入账和继续循环。

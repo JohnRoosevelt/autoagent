@@ -1,17 +1,13 @@
 use crate::{
     agent::StreamChatModel,
-    llm::{ChatResponse, LlmError, StreamEvent, Usage},
+    llm::{ChatResponse, FinishReason, LlmError, StreamEvent, ToolCall, ToolDefinition, Usage},
     message::Message,
 };
 use futures::StreamExt;
 use serde_json::Value;
 
-// 派生宏：为结构体自动生成 Clone 实现（对本类型来说 clone 很廉价，见下面 http 字段的说明）
 #[derive(Clone)]
 pub struct LlmClient {
-    /// reqwest::Client 内部自带连接池（持久连接 + TLS 会话复用），
-    /// clone 它只是引用计数 +1，非常便宜。
-    /// 千万不要每次请求 new 一个——那等于每次都重新 TCP/TLS 握手。
     http: reqwest::Client,
     pub base_url: String,
     pub api_key: String,
@@ -19,19 +15,14 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
-    /// 三个环境变量决定"我们用的是哪家模型"：
-    /// AGENT_BASE_URL / AGENT_API_KEY / AGENT_MODEL
     pub fn from_env() -> Result<Self, LlmError> {
         let api_key = std::env::var("AGENT_API_KEY")
             .map_err(|_| LlmError::Config("缺少 AGENT_API_KEY，请在 .env 中设置它".into()))?;
-
         if api_key.trim().is_empty() {
             return Err(LlmError::Config("AGENT_API_KEY 不能为空".into()));
         }
-
         let base_url = std::env::var("AGENT_BASE_URL")
             .unwrap_or_else(|_| "https://openrouter.ai/api/v1".into());
-
         Ok(Self {
             http: reqwest::Client::new(),
             base_url: base_url.trim_end_matches('/').to_owned(),
@@ -40,14 +31,13 @@ impl LlmClient {
         })
     }
 
-    /// 将完整对话历史发送给模型；调用方负责在每轮结束后把回复追加回会话。
-    /// 保留此非流式路径，方便与 SSE 路径对照或供后续调用方选择。
     #[allow(dead_code)]
-    // async fn：异步函数，调用后返回一个 Future，要 .await 才真正执行到完成
-    pub async fn chat(&self, messages: &[Message]) -> Result<ChatResponse, LlmError> {
-        let body = chat_request_body(&self.model, messages);
-
-        // .await 等待异步操作完成；? 在 Err 时提前返回，并经 From 把错误转换成 anyhow::Error
+    pub async fn chat(
+        &self,
+        messages: &[Message],
+        tools: &[ToolDefinition],
+    ) -> Result<ChatResponse, LlmError> {
+        let body = chat_request_body(&self.model, messages, tools);
         let resp = self
             .http
             .post(format!("{}/chat/completions", self.base_url))
@@ -56,32 +46,24 @@ impl LlmClient {
             .send()
             .await
             .map_err(|e| LlmError::Network(e.to_string()))?;
-
         let status = resp.status();
-        // 先收成字符串再解析：失败时 body 里的报错信息不会丢
         let text = resp
             .text()
             .await
             .map_err(|e| LlmError::Network(e.to_string()))?;
-
         if !status.is_success() {
-            // 服务器返回非 2xx 状态码，解析 body 中的错误信息
             return Err(LlmError::from_http(status.as_u16(), text));
         }
-
         parse_chat_response(&text)
     }
 
-    /// 以 Server-Sent Events 接收增量回复，并将统一后的领域事件发送给调用方。
-    ///
-    /// 返回值中的 content 是所有 delta 的拼接结果。请求使用
-    /// `stream_options.include_usage`，以便支持该选项的服务在结束事件中返回 token 用量。
     pub async fn chat_stream(
         &self,
         messages: &[Message],
+        tools: &[ToolDefinition],
         tx: tokio::sync::mpsc::Sender<StreamEvent>,
     ) -> Result<ChatResponse, LlmError> {
-        let body = stream_request_body(&self.model, messages);
+        let body = stream_request_body(&self.model, messages, tools);
         let resp = self
             .http
             .post(format!("{}/chat/completions", self.base_url))
@@ -90,7 +72,6 @@ impl LlmClient {
             .send()
             .await
             .map_err(|e| LlmError::Network(e.to_string()))?;
-
         let status = resp.status();
         if !status.is_success() {
             let text = resp
@@ -99,18 +80,14 @@ impl LlmClient {
                 .map_err(|e| LlmError::Network(e.to_string()))?;
             return Err(LlmError::from_http(status.as_u16(), text));
         }
-
         send_stream_event(&tx, StreamEvent::Start).await?;
-
         let mut parser = SseParser::default();
         let mut stream = resp.bytes_stream();
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| LlmError::Network(e.to_string()))?;
-            for delta in parser.push(&chunk)? {
+            for delta in parser.push(&chunk.map_err(|e| LlmError::Network(e.to_string()))?)? {
                 send_stream_event(&tx, StreamEvent::TextDelta(delta)).await?;
             }
         }
-
         let (response, final_deltas) = parser.finish()?;
         for delta in final_deltas {
             send_stream_event(&tx, StreamEvent::TextDelta(delta)).await?;
@@ -125,18 +102,32 @@ impl StreamChatModel for LlmClient {
     fn chat_stream(
         &self,
         messages: &[Message],
+        tools: &[ToolDefinition],
         tx: tokio::sync::mpsc::Sender<StreamEvent>,
     ) -> impl std::future::Future<Output = Result<ChatResponse, LlmError>> + Send {
-        async move { LlmClient::chat_stream(self, messages, tx).await }
+        async move { LlmClient::chat_stream(self, messages, tools, tx).await }
     }
 }
 
 #[allow(dead_code)]
-fn chat_request_body(model: &str, messages: &[Message]) -> Value {
-    serde_json::json!({
-        "model": model,
-        "messages": messages,
-    })
+fn chat_request_body(model: &str, messages: &[Message], tools: &[ToolDefinition]) -> Value {
+    let mut body = serde_json::json!({ "model": model, "messages": messages });
+    if !tools.is_empty() {
+        body["tools"] = tool_definitions_value(tools);
+    }
+    body
+}
+
+fn stream_request_body(model: &str, messages: &[Message], tools: &[ToolDefinition]) -> Value {
+    let mut body = serde_json::json!({ "model": model, "messages": messages, "stream": true, "stream_options": { "include_usage": true } });
+    if !tools.is_empty() {
+        body["tools"] = tool_definitions_value(tools);
+    }
+    body
+}
+
+fn tool_definitions_value(tools: &[ToolDefinition]) -> Value {
+    Value::Array(tools.iter().map(|tool| serde_json::json!({ "type": "function", "function": { "name": tool.name, "description": tool.description, "parameters": tool.parameters } })).collect())
 }
 
 async fn send_stream_event(
@@ -148,33 +139,73 @@ async fn send_stream_event(
         .map_err(|_| LlmError::Other("流事件接收方已关闭".into()))
 }
 
-fn stream_request_body(model: &str, messages: &[Message]) -> Value {
-    serde_json::json!({
-        "model": model,
-        "messages": messages,
-        "stream": true,
-        "stream_options": { "include_usage": true },
-    })
-}
-
 #[allow(dead_code)]
 fn parse_chat_response(text: &str) -> Result<ChatResponse, LlmError> {
     let value: Value = serde_json::from_str(text)
         .map_err(|e| LlmError::Other(format!("响应不是合法 JSON: {e}")))?;
-
-    let content = value["choices"][0]["message"]["content"]
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| LlmError::Other(format!("响应结构不符合预期: {text}")))?;
-
+    let choice = &value["choices"][0];
+    let message = &choice["message"];
+    if !message.is_object() {
+        return Err(LlmError::Other(format!("响应结构不符合预期: {text}")));
+    }
+    let content = message["content"].as_str().unwrap_or_default().to_owned();
+    let tool_calls = parse_tool_calls(&message["tool_calls"], text)?;
+    let finish_reason = parse_finish_reason(choice["finish_reason"].as_str());
     let usage = Usage {
         input_tokens: parse_token_count(&value, "prompt_tokens", text)?,
         output_tokens: parse_token_count(&value, "completion_tokens", text)?,
     };
-
-    Ok(ChatResponse { content, usage })
+    Ok(ChatResponse {
+        content,
+        tool_calls,
+        finish_reason,
+        usage,
+    })
 }
 
+fn parse_tool_calls(value: &Value, text: &str) -> Result<Vec<ToolCall>, LlmError> {
+    let Some(calls) = value.as_array() else {
+        return if value.is_null() {
+            Ok(Vec::new())
+        } else {
+            Err(LlmError::Other(format!(
+                "响应 tool_calls 不符合预期: {text}"
+            )))
+        };
+    };
+    calls
+        .iter()
+        .map(|call| {
+            Ok(ToolCall {
+                id: call["id"]
+                    .as_str()
+                    .ok_or_else(|| LlmError::Other(format!("响应 tool_call 缺少 id: {text}")))?
+                    .to_owned(),
+                name: call["function"]["name"]
+                    .as_str()
+                    .ok_or_else(|| {
+                        LlmError::Other(format!("响应 tool_call 缺少 function.name: {text}"))
+                    })?
+                    .to_owned(),
+                arguments: call["function"]["arguments"]
+                    .as_str()
+                    .ok_or_else(|| {
+                        LlmError::Other(format!("响应 tool_call 缺少 function.arguments: {text}"))
+                    })?
+                    .to_owned(),
+            })
+        })
+        .collect()
+}
+
+fn parse_finish_reason(reason: Option<&str>) -> FinishReason {
+    match reason {
+        Some("stop") => FinishReason::Stop,
+        Some("tool_calls") => FinishReason::ToolCalls,
+        Some(other) => FinishReason::Other(other.to_owned()),
+        None => FinishReason::Other("missing".into()),
+    }
+}
 fn parse_token_count(value: &Value, field: &str, text: &str) -> Result<usize, LlmError> {
     value["usage"][field]
         .as_u64()
@@ -182,14 +213,21 @@ fn parse_token_count(value: &Value, field: &str, text: &str) -> Result<usize, Ll
         .ok_or_else(|| LlmError::Other(format!("响应缺少 usage.{field}: {text}")))
 }
 
-/// 最小 SSE 解码器：HTTP chunk 不等于 SSE 事件，因此先按换行重组，再在空行处分发事件。
 #[derive(Default)]
 struct SseParser {
     pending: Vec<u8>,
     data: Vec<String>,
     content: String,
+    tool_calls: Vec<PartialToolCall>,
+    finish_reason: FinishReason,
     usage: Usage,
     done: bool,
+}
+#[derive(Default)]
+struct PartialToolCall {
+    id: String,
+    name: String,
+    arguments: String,
 }
 
 impl SseParser {
@@ -208,7 +246,6 @@ impl SseParser {
         }
         Ok(deltas)
     }
-
     fn finish(mut self) -> Result<(ChatResponse, Vec<String>), LlmError> {
         let mut deltas = Vec::new();
         if !self.pending.is_empty() {
@@ -221,15 +258,25 @@ impl SseParser {
         if !self.done {
             return Err(LlmError::Other("SSE 流在收到 [DONE] 前结束".into()));
         }
+        let tool_calls = self
+            .tool_calls
+            .into_iter()
+            .map(|call| ToolCall {
+                id: call.id,
+                name: call.name,
+                arguments: call.arguments,
+            })
+            .collect();
         Ok((
             ChatResponse {
                 content: self.content,
+                tool_calls,
+                finish_reason: self.finish_reason,
                 usage: self.usage,
             },
             deltas,
         ))
     }
-
     fn process_line(&mut self, line: &str, deltas: &mut Vec<String>) -> Result<(), LlmError> {
         if line.is_empty() {
             return self.dispatch(deltas);
@@ -239,7 +286,6 @@ impl SseParser {
         }
         Ok(())
     }
-
     fn dispatch(&mut self, deltas: &mut Vec<String>) -> Result<(), LlmError> {
         if self.data.is_empty() {
             return Ok(());
@@ -250,18 +296,48 @@ impl SseParser {
             self.done = true;
             return Ok(());
         }
-
         let value: Value = serde_json::from_str(&data)
             .map_err(|e| LlmError::Other(format!("SSE data 不是合法 JSON: {e}; data: {data}")))?;
-        if let Some(content) = value["choices"][0]["delta"]["content"].as_str() {
+        let choice = &value["choices"][0];
+        let delta = &choice["delta"];
+        if let Some(content) = delta["content"].as_str() {
             self.content.push_str(content);
             deltas.push(content.to_owned());
         }
+        if let Some(reason) = choice["finish_reason"].as_str() {
+            self.finish_reason = parse_finish_reason(Some(reason));
+        }
+        self.append_tool_call_deltas(&delta["tool_calls"])?;
         if value.get("usage").is_some_and(|usage| !usage.is_null()) {
             self.usage = Usage {
                 input_tokens: parse_token_count(&value, "prompt_tokens", &data)?,
                 output_tokens: parse_token_count(&value, "completion_tokens", &data)?,
             };
+        }
+        Ok(())
+    }
+    fn append_tool_call_deltas(&mut self, value: &Value) -> Result<(), LlmError> {
+        let Some(calls) = value.as_array() else {
+            return Ok(());
+        };
+        for call in calls {
+            let index = call["index"]
+                .as_u64()
+                .and_then(|index| usize::try_from(index).ok())
+                .ok_or_else(|| LlmError::Other("SSE tool_call 缺少 index".into()))?;
+            while self.tool_calls.len() <= index {
+                self.tool_calls.push(PartialToolCall::default());
+            }
+            let target = &mut self.tool_calls[index];
+            if let Some(id) = call["id"].as_str() {
+                target.id.push_str(id);
+            }
+            if let Some(name) = call["function"]["name"].as_str() {
+                target.name.push_str(name);
+            }
+            if let Some(arguments) = call["function"]["arguments"].as_str() {
+                target.arguments.push_str(arguments);
+            }
         }
         Ok(())
     }

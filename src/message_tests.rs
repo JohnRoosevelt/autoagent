@@ -1,30 +1,29 @@
-use super::{Conversation, Message, Role};
+use super::{Conversation, Message};
+use crate::llm::ToolCall;
 
 #[test]
 fn serializes_messages_with_openai_compatible_roles() {
-    let message = Message::system("回答要简洁");
-
     assert_eq!(
-        serde_json::to_value(message).unwrap(),
-        serde_json::json!({"role": "system", "content": "回答要简洁"})
+        serde_json::to_value(Message::system("回答要简洁")).unwrap(),
+        serde_json::json!({"role":"system","content":"回答要简洁"})
     );
 }
 
 #[test]
-fn conversation_preserves_messages_in_append_order() {
+fn assistant_tool_calls_are_preserved_for_the_next_request() {
+    let calls = vec![ToolCall {
+        id: "call_1".into(),
+        name: "weather".into(),
+        arguments: "{\"city\":\"北京\"}".into(),
+    }];
     let mut conversation = Conversation::new();
-    conversation.add_system("你是一个助手。");
-    conversation.add_user("什么是 HTTP？");
-    conversation.add_assistant("HTTP 是一种应用层协议。");
-    conversation.push(Message::new(Role::User, "它基于什么传输？"));
-
+    conversation.add_assistant_response(String::new(), calls.clone());
     assert_eq!(
-        conversation.messages(),
-        [
-            Message::system("你是一个助手。"),
-            Message::user("什么是 HTTP？"),
-            Message::assistant("HTTP 是一种应用层协议。"),
-            Message::user("它基于什么传输？"),
-        ]
+        conversation.messages()[0],
+        Message::assistant_with_tool_calls(None, calls)
+    );
+    assert_eq!(
+        serde_json::to_value(&conversation.messages()[0]).unwrap(),
+        serde_json::json!({"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"weather","arguments":"{\"city\":\"北京\"}"}}]})
     );
 }

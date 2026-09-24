@@ -4,7 +4,7 @@
 
 本项目参考相关 Agent 教程的学习思路，但不以复刻文章代码为目标；会根据自己的理解逐步实现 LLM 调用、错误处理、流式输出、工具调用与 Agent 工作流等能力。
 
-> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出与最小 Agent Loop。
+> 当前仍处于早期阶段：已经完成带上下文的 LLM 对话调用、配置加载、SSE 流式输出、最小 Agent Loop 与 Tool / Function Calling 协议承接。
 
 ## 学习路线
 
@@ -21,6 +21,8 @@
 - 解析服务端返回的输入与输出 token 用量，用三轮对话示例观察历史重放带来的输入增长；
 - 通过 SSE 接收 OpenAI-compatible 服务的增量事件，并用 Tokio channel 将 `Start`、文本增量与完成事件交给显示层；
 - 由 `Agent` 管理会话、待处理输入与执行步数，在内部循环调用模型、转发流事件并回填 assistant 回复；
+- 声明 OpenAI-compatible `tools`，解析非流式与 SSE 流式 `tool_calls`（包括分块 arguments），并保留 assistant 工具调用上下文；
+- Agent 收到工具请求后显式暂停为“等待工具执行”，不在协议章节伪造执行结果；
 - 以“没有待处理输入”或“达到最大步数”明确结束 Agent 运行，防止未来工具分支出现无限循环；
 - 提供 `scripts/run.sh`，避免每次手动输入环境变量。
 
@@ -93,14 +95,14 @@ cargo run
 
 ## 当前示例
 
-当前入口会创建一段包含 system 消息的会话，并向 `Agent` 排入三条用户输入：
+当前入口会创建一段包含 system 消息的会话，声明一个**仅用于演示、不会实际执行**的 `get_weather` 工具，并向 `Agent` 排入工具请求：
 
 ```text
 system: 你是一个简洁、准确的助手。
-user: 我叫小赤。
+user: 请查询北京现在的天气。请调用 get_weather，不要猜测结果。
 ```
 
-`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；Agent 消费后经 Tokio channel 原样转发给入口显示。收到完成事件后会显示服务端返回的 `input_tokens` 与 `output_tokens`，Agent 再将聚合后的 assistant 回复写回账本。所有输入完成或达到最大步数后，循环明确结束；随着历史变长，通常可以观察到 `input_tokens` 逐轮增加。
+`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和已声明的工具以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 会将 assistant tool_calls 完整写回账本，并以 `ToolCallsRequested` 暂停；它不会伪造天气结果或执行真实工具。第 06 章将在此处接入执行、`role: tool` 回填和继续循环。
 
 ## 错误处理约定
 

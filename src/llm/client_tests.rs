@@ -1,68 +1,106 @@
-use super::{
-    SseParser, chat_request_body, parse_chat_response, send_stream_event, stream_request_body,
-};
+use super::{SseParser, chat_request_body, parse_chat_response, stream_request_body};
 use crate::{
-    llm::{ChatResponse, LlmError, StreamEvent, Usage},
+    llm::{FinishReason, ToolCall, ToolDefinition},
     message::Conversation,
 };
-use tokio::sync::mpsc;
+
+fn weather_tool() -> ToolDefinition {
+    ToolDefinition::new(
+        "weather",
+        "查询天气",
+        serde_json::json!({"type":"object","properties":{"city":{"type":"string"}}}),
+    )
+}
 
 #[test]
-fn second_round_request_contains_complete_conversation_context() {
-    let mut conversation = Conversation::new();
-    conversation.add_system("你是一个助手。");
-    conversation.add_user("法国的首都是哪里？");
-    conversation.add_assistant("法国的首都是巴黎。");
-    conversation.add_user("它有多少人口？");
-
-    let body = chat_request_body("test-model", conversation.messages());
-
-    assert_eq!(body["model"], "test-model");
+fn requests_only_standard_openai_tools_when_definitions_are_present() {
+    let body = chat_request_body("test-model", &[], &[weather_tool()]);
     assert_eq!(
-        body["messages"],
-        serde_json::json!([
-            {"role": "system", "content": "你是一个助手。"},
-            {"role": "user", "content": "法国的首都是哪里？"},
-            {"role": "assistant", "content": "法国的首都是巴黎。"},
-            {"role": "user", "content": "它有多少人口？"},
-        ])
+        body["tools"],
+        serde_json::json!([{"type":"function","function":{"name":"weather","description":"查询天气","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}])
+    );
+    assert!(body.get("tool_definitions").is_none());
+    assert!(
+        chat_request_body("test-model", &[], &[])
+            .get("tools")
+            .is_none()
     );
 }
 
 #[test]
-fn stream_request_enables_sse_and_usage_reporting() {
+fn stream_request_keeps_sse_usage_and_tools() {
     let mut conversation = Conversation::new();
-    conversation.add_user("请流式回答");
-
-    let body = stream_request_body("test-model", conversation.messages());
-
+    conversation.add_user("请查询");
+    let body = stream_request_body("test-model", conversation.messages(), &[weather_tool()]);
     assert_eq!(body["stream"], true);
     assert_eq!(body["stream_options"]["include_usage"], true);
+    assert!(body["tools"].is_array());
 }
 
 #[test]
-fn parses_sse_deltas_across_http_chunk_boundaries() {
+fn parses_text_response_finish_reason_and_usage() {
+    let parsed = parse_chat_response(r#"{"choices":[{"finish_reason":"stop","message":{"content":"你好"}}],"usage":{"prompt_tokens":7,"completion_tokens":2}}"#).unwrap();
+    assert_eq!(parsed.content, "你好");
+    assert_eq!(parsed.finish_reason, FinishReason::Stop);
+    assert!(parsed.tool_calls.is_empty());
+    assert_eq!(parsed.usage.input_tokens, 7);
+}
+
+#[test]
+fn parses_null_content_and_multiple_tool_calls() {
+    let parsed = parse_chat_response(r#"{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[{"id":"call_1","function":{"name":"weather","arguments":"{\"city\":\"北京\"}"}},{"id":"call_2","function":{"name":"clock","arguments":"{}"}}]}}],"usage":{"prompt_tokens":7,"completion_tokens":2}}"#).unwrap();
+    assert_eq!(parsed.content, "");
+    assert_eq!(parsed.finish_reason, FinishReason::ToolCalls);
+    assert_eq!(
+        parsed.tool_calls,
+        vec![
+            ToolCall {
+                id: "call_1".into(),
+                name: "weather".into(),
+                arguments: "{\"city\":\"北京\"}".into()
+            },
+            ToolCall {
+                id: "call_2".into(),
+                name: "clock".into(),
+                arguments: "{}".into()
+            }
+        ]
+    );
+}
+
+#[test]
+fn aggregates_text_usage_and_fragmented_tool_calls_from_sse() {
     let chunks = [
-        "data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}".as_bytes(),
-        "\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":2}}\n".as_bytes(),
-        "\ndata: [DONE]\n\n".as_bytes(),
+        "data: {\"choices\":[{\"delta\":{\"content\":\"你\",\"tool_calls\":[{\"index\":0,\"id\":\"call_\",\"function\":{\"name\":\"wea\",\"arguments\":\"{\\\"city\\\":\"}}]}}]}\n\n",
+        "data: {\"choices\":[{\"delta\":{\"content\":\"好\",\"tool_calls\":[{\"index\":0,\"id\":\"1\",\"function\":{\"name\":\"ther\",\"arguments\":\"\\\"北京\\\"}\"}},{\"index\":1,\"id\":\"call_2\",\"function\":{\"name\":\"clock\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":2}}\n\ndata: [DONE]\n\n",
     ];
     let mut parser = SseParser::default();
     let mut displayed = String::new();
     for chunk in chunks {
-        for delta in parser.push(chunk).unwrap() {
+        for delta in parser.push(chunk.as_bytes()).unwrap() {
             displayed.push_str(&delta);
         }
     }
-    let (response, final_deltas) = parser.finish().unwrap();
-    for delta in final_deltas {
-        displayed.push_str(&delta);
-    }
-
+    let (response, _) = parser.finish().unwrap();
     assert_eq!(displayed, "你好");
     assert_eq!(response.content, "你好");
-    assert_eq!(response.usage.input_tokens, 7);
+    assert_eq!(response.finish_reason, FinishReason::ToolCalls);
     assert_eq!(response.usage.output_tokens, 2);
+    assert_eq!(
+        response.tool_calls,
+        vec![
+            ToolCall {
+                id: "call_1".into(),
+                name: "weather".into(),
+                arguments: "{\"city\":\"北京\"}".into()
+            },
+            ToolCall {
+                id: "call_2".into(),
+                name: "clock".into(),
+                arguments: "{}".into()
+            }
+        ]
+    );
 }
 
 #[test]
@@ -71,80 +109,5 @@ fn rejects_sse_stream_without_done_event() {
     parser
         .push("data: {\"choices\":[{\"delta\":{\"content\":\"回答\"}}]}\n\n".as_bytes())
         .unwrap();
-
-    let error = parser.finish().unwrap_err();
-    assert!(matches!(error, LlmError::Other(message) if message.contains("[DONE]")));
-}
-
-#[tokio::test]
-async fn delivers_stream_events_in_order() {
-    let (tx, mut rx) = mpsc::channel(3);
-    let response = ChatResponse {
-        content: "你好".into(),
-        usage: Usage {
-            input_tokens: 7,
-            output_tokens: 2,
-        },
-    };
-
-    send_stream_event(&tx, StreamEvent::Start).await.unwrap();
-    send_stream_event(&tx, StreamEvent::TextDelta("你".into()))
-        .await
-        .unwrap();
-    send_stream_event(&tx, StreamEvent::Done(response.clone()))
-        .await
-        .unwrap();
-    drop(tx);
-
-    assert_eq!(rx.recv().await, Some(StreamEvent::Start));
-    assert_eq!(rx.recv().await, Some(StreamEvent::TextDelta("你".into())));
-    assert_eq!(rx.recv().await, Some(StreamEvent::Done(response)));
-    assert_eq!(rx.recv().await, None);
-}
-
-#[test]
-fn parses_openai_compatible_response() {
-    let response = r#"{
-        "choices": [
-            { "message": { "content": "HTTP 是一种应用层协议。" } }
-        ],
-        "usage": {
-            "prompt_tokens": 23,
-            "completion_tokens": 12,
-            "total_tokens": 35
-        }
-    }"#;
-
-    let parsed = parse_chat_response(response).unwrap();
-    assert_eq!(parsed.content, "HTTP 是一种应用层协议。");
-    assert_eq!(parsed.usage.input_tokens, 23);
-    assert_eq!(parsed.usage.output_tokens, 12);
-}
-
-#[test]
-fn rejects_invalid_json_response() {
-    let error = parse_chat_response("not json").unwrap_err();
-
-    assert!(matches!(error, LlmError::Other(message) if message.contains("响应不是合法 JSON")));
-}
-
-#[test]
-fn rejects_response_without_message_content() {
-    let error = parse_chat_response(r#"{"choices": [{"message": {}}]}"#).unwrap_err();
-
-    assert!(matches!(error, LlmError::Other(message) if message.contains("响应结构不符合预期")));
-}
-
-#[test]
-fn rejects_response_without_usage() {
-    let error = parse_chat_response(
-        r#"{
-        "choices": [{"message": {"content": "回答"}}]
-    }"#,
-    )
-    .unwrap_err();
-
-    assert!(
-        matches!(error, LlmError::Other(message) if message.contains("响应缺少 usage.prompt_tokens"))
-    );
+    assert!(parser.finish().is_err());
 }

@@ -1,61 +1,108 @@
 pub mod client;
 
+use serde::{Serialize, Serializer, ser::SerializeStruct};
+use serde_json::Value;
+
+/// 宿主程序可提供给 OpenAI-compatible 模型的函数定义。
+#[derive(Clone, Debug, PartialEq)]
+pub struct ToolDefinition {
+    pub name: String,
+    pub description: String,
+    /// OpenAI `function.parameters` 使用的 JSON Schema；本章不验证它。
+    pub parameters: Value,
+}
+
+#[allow(dead_code)]
+impl ToolDefinition {
+    pub fn new(name: impl Into<String>, description: impl Into<String>, parameters: Value) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            parameters,
+        }
+    }
+}
+
+/// 模型请求的一次函数调用。`arguments` 保留 provider 返回的原始 JSON 字符串。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ToolCall {
+    pub id: String,
+    pub name: String,
+    pub arguments: String,
+}
+
+impl Serialize for ToolCall {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ToolCall", 3)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("type", "function")?;
+        state.serialize_field(
+            "function",
+            &serde_json::json!({ "name": self.name, "arguments": self.arguments }),
+        )?;
+        state.end()
+    }
+}
+
+/// 模型结束当前回复的原因。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FinishReason {
+    Stop,
+    ToolCalls,
+    Other(String),
+}
+
+impl Default for FinishReason {
+    fn default() -> Self {
+        Self::Other("missing".into())
+    }
+}
+
 /// 一次模型调用的 token 计量。
-///
-/// 字段名称使用 input/output，避免把 OpenAI 的 prompt/completion 术语带入内部类型。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Usage {
     pub input_tokens: usize,
     pub output_tokens: usize,
 }
 
-/// 当前这轮模型调用的文本回复与服务端计量。
+/// 当前这轮模型调用的完整结果，包括文本、工具意图与服务端计量。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChatResponse {
     pub content: String,
+    pub tool_calls: Vec<ToolCall>,
+    pub finish_reason: FinishReason,
     pub usage: Usage,
 }
 
 /// 由 LLM 流式协议转换而来的领域事件。
 ///
-/// 调用方不必了解 provider 的 SSE 格式，只需消费这些事件。工具调用相关的事件
-/// 会在引入 Tool Calling 数据模型时再扩展。
+/// 调用方不必了解 provider 的 SSE 格式。工具调用在 delta 间通常不完整，故只在
+/// `Done` 的完整 `ChatResponse` 中暴露，避免显示层解析或拼接原始 JSON。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StreamEvent {
-    /// 服务端已接受请求并返回成功响应头。
     Start,
-    /// 新到达的一小段回复正文。
     TextDelta(String),
-    /// 流已正常结束，携带聚合完成的完整响应。
     Done(ChatResponse),
 }
 
-/// LLM 调用错误的分类。
-/// 为什么不直接用 anyhow？因为"能不能重试"取决于"错在哪一层"，
-/// 网络抖动值得重试，API key 写错重试一万次也没用。
-// thiserror 的派生宏：自动实现 std::error::Error 与 Display，免去手写样板代码
 #[derive(Debug, thiserror::Error)]
 pub enum LlmError {
     #[error("配置错误: {0}")]
     Config(String),
-
-    // #[error("…")] 生成 Display：{0} 引用元组变体的第 0 个字段，{body} 引用命名字段
     #[error("网络错误: {0}")]
     Network(String),
-
     #[error("请求无效（4xx，重试没有意义）: {body}")]
     InvalidRequest { status: u16, body: String },
-
     #[error("可重试的 HTTP 错误: {status} {body}")]
     Server { status: u16, body: String },
-
     #[error("其他错误: {0}")]
     Other(String),
 }
 
 impl LlmError {
-    /// 把 HTTP 响应翻译成错误。注意：要把响应 body 原样保留，
-    /// provider 的报错细节（哪个字段错了、限额还剩多少）都在 body 里。
     pub fn from_http(status: u16, body: String) -> Self {
         match status {
             408 | 429 => LlmError::Server { status, body },
@@ -65,11 +112,8 @@ impl LlmError {
         }
     }
 
-    /// 这个错误值得重试吗？
     #[allow(dead_code)]
     pub fn is_retryable(&self) -> bool {
-        // matches! 宏：判断表达式是否匹配模式并返回 bool；| 是"或"模式，
-        // Server { .. } 里的 .. 忽略结构体变体的全部字段
         matches!(self, LlmError::Network(_) | LlmError::Server { .. })
     }
 }
