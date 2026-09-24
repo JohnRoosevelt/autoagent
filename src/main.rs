@@ -11,6 +11,8 @@ mod llm;
 mod memory;
 mod message;
 #[allow(dead_code)]
+mod middleware;
+#[allow(dead_code)]
 mod session;
 mod shell;
 #[allow(dead_code)]

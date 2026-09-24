@@ -61,7 +61,7 @@
 | ☑ | 16 | Memory | 建立受根目录约束、由调用方显式选择的分级 Markdown 长期记忆注入。 |
 | ☑ | 17 | Artifact | 将大对象外置到受根目录约束的磁盘文件，上下文只保留引用。 |
 | ☑ | 18 | Hooks | 以最小 wrapper 在工具调用前后执行本地定义的回调。 |
-| ☐ | 19 | Middleware | 用洋葱式中间件包装模型调用或 Agent 执行流程。 |
+| ☑ | 19 | Middleware | 用最小 model wrapper 在模型调用前包装既有 Agent 模型边界。 |
 | ☐ | 20 | Plugins | 定义插件目录与注册约定，将可选能力打包和加载。 |
 
 ## 第四幕 · 上生产（21–29）
@@ -273,4 +273,12 @@
 
 ## 当前下一步
 
-进入 **第 19 章 · Middleware**。
+## 第 19 章 Checkpoint
+
+- ☑ `MiddlewareModel` 实现既有 `StreamChatModel`，在每次调用前执行 `ModelMiddleware`；
+- ☑ 测试覆盖真实 wrapper 边界；不含 middleware 链、洋葱调度或全局 Agent 重写；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
+## 当前下一步
+
+进入 **第 20 章 · Plugins**。
