@@ -41,6 +41,7 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 32 | `chapter-32-steering` | Steering：安全回合边界的有界本地 inbox 与协作式取消。 |
 | 33 | `chapter-33-prompt-caching-cost` | Prompt Caching / Cost：local stable-prefix 与 token 成本核算。 |
 | 34 | `chapter-34-guardrails` | Guardrails：untrusted content data 标记与出站 secret filtering。 |
+| 35 | `chapter-35-web-fetch` | Web Fetch：strict HTTPS allowlist、size cap 与 local HTML text。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
@@ -157,6 +158,10 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 - ☑ 以 injected local implementation 执行可重复 case；
 - ☑ 无模型调用、网络或外部 benchmark。
+
+## 第 35 章 Checkpoint（已发布为 `chapter-35-web-fetch`）
+
+- ☑ strict HTTPS exact-host allowlist、无 credentials/ports、size cap 和 local HTML text；无真实 GET。
 
 ## 第 34 章 Checkpoint（已发布为 `chapter-34-guardrails`）
 

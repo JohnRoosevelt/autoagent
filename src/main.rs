@@ -49,6 +49,8 @@ mod steering;
 #[allow(dead_code)]
 mod subagent;
 mod tool;
+#[allow(dead_code)]
+mod web;
 
 use agent::{AgentEvent, RetryPolicy};
 use command::Command;
