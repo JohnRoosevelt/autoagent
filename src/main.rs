@@ -3,7 +3,7 @@ mod llm;
 mod message;
 mod tool;
 
-use agent::{Agent, RetryPolicy};
+use agent::{Agent, AgentEvent, RetryPolicy};
 use llm::{FinishReason, StreamEvent, client::LlmClient};
 use message::{Conversation, Role};
 use std::{io::Write, time::Duration};
@@ -29,12 +29,18 @@ async fn main() -> anyhow::Result<()> {
     let renderer = tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
-                StreamEvent::Start => print!("回答: "),
-                StreamEvent::TextDelta(delta) => {
+                AgentEvent::Started => println!("Agent 已启动。"),
+                AgentEvent::Input { content } => println!("用户输入: {content}"),
+                AgentEvent::Attempt { attempt } => println!("开始第 {attempt} 次模型尝试"),
+                AgentEvent::Retry { attempt, delay } => {
+                    println!("模型请求失败，将在 {:?} 后开始第 {attempt} 次尝试", delay);
+                }
+                AgentEvent::Model(StreamEvent::Start) => print!("回答: "),
+                AgentEvent::Model(StreamEvent::TextDelta(delta)) => {
                     print!("{delta}");
                     std::io::stdout().flush().expect("无法刷新标准输出");
                 }
-                StreamEvent::Done(response) => {
+                AgentEvent::Model(StreamEvent::Done(response)) => {
                     println!();
                     println!("input_tokens = {}", response.usage.input_tokens);
                     println!("output_tokens = {}", response.usage.output_tokens);
@@ -45,10 +51,14 @@ async fn main() -> anyhow::Result<()> {
                         }
                     }
                 }
-                StreamEvent::Retrying { attempt, delay } => {
-                    println!("模型请求失败，将在 {:?} 后开始第 {attempt} 次尝试", delay);
+                AgentEvent::AssistantRecorded { .. } => {}
+                AgentEvent::ToolStarted { call_id, name } => println!("开始工具 {call_id}: {name}"),
+                AgentEvent::ToolFinished { call_id, name } => {
+                    println!("完成工具 {call_id}: {name}")
                 }
-                StreamEvent::Cancelled => println!("Agent 已取消。"),
+                AgentEvent::Cancelled => println!("Agent 已取消。"),
+                AgentEvent::Finished(_) => println!("Agent 已完成。"),
+                AgentEvent::Failed { error } => eprintln!("Agent 失败: {error}"),
             }
         }
     });

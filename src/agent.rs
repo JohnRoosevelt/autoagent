@@ -110,6 +110,24 @@ pub enum AgentState {
     Failed,
 }
 
+/// Agent 对宿主程序发出的最小运行生命周期事件。
+///
+/// `Model` 保留 LLM 层的流式边界；其余变体描述 Agent 对输入、重试、账本和工具的编排。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AgentEvent {
+    Started,
+    Input { content: String },
+    Attempt { attempt: usize },
+    Retry { attempt: usize, delay: Duration },
+    Model(StreamEvent),
+    AssistantRecorded { response: ChatResponse },
+    ToolStarted { call_id: String, name: String },
+    ToolFinished { call_id: String, name: String },
+    Cancelled,
+    Finished(RunReport),
+    Failed { error: String },
+}
+
 /// 一次运行的摘要，供调用方记录和显示。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RunReport {
@@ -197,11 +215,8 @@ impl<M: StreamChatModel> Agent<M> {
         self.state
     }
 
-    /// 使用一个永不取消的令牌运行，保持第 06 章调用方式兼容。
-    pub async fn run(
-        &mut self,
-        events: mpsc::Sender<StreamEvent>,
-    ) -> Result<RunReport, AgentError> {
+    /// 使用一个永不取消的令牌运行。
+    pub async fn run(&mut self, events: mpsc::Sender<AgentEvent>) -> Result<RunReport, AgentError> {
         self.run_with_cancellation(events, &CancellationToken::new())
             .await
     }
@@ -209,10 +224,18 @@ impl<M: StreamChatModel> Agent<M> {
     /// 在模型等待、流转发、退避，以及每个工具开始前协作式响应取消。
     pub async fn run_with_cancellation(
         &mut self,
-        events: mpsc::Sender<StreamEvent>,
+        events: mpsc::Sender<AgentEvent>,
         cancellation: &CancellationToken,
     ) -> Result<RunReport, AgentError> {
         self.state = AgentState::Running;
+        match self
+            .send_event(&events, AgentEvent::Started, cancellation)
+            .await
+        {
+            Ok(()) => {}
+            Err(ModelCallOutcome::Cancelled) => return self.cancel(events, 0, 0, 0),
+            Err(ModelCallOutcome::Error(error)) => return self.fail(events, error).await,
+        }
         let mut needs_model_turn = false;
         let mut tool_calls_processed = 0;
         let mut model_attempts = 0;
@@ -224,14 +247,31 @@ impl<M: StreamChatModel> Agent<M> {
             }
             if !needs_model_turn {
                 let Some(input) = self.pending_inputs.pop_front() else {
-                    return Ok(self.stop(
-                        TerminationReason::NoPendingInput,
-                        tool_calls_processed,
-                        model_attempts,
-                        retries,
-                    ));
+                    return self
+                        .finish(
+                            events,
+                            TerminationReason::NoPendingInput,
+                            tool_calls_processed,
+                            model_attempts,
+                            retries,
+                        )
+                        .await;
                 };
-                self.conversation.add_user(input);
+                self.conversation.add_user(input.clone());
+                if let Err(outcome) = self
+                    .send_event(&events, AgentEvent::Input { content: input }, cancellation)
+                    .await
+                {
+                    return self
+                        .handle_outcome(
+                            events,
+                            outcome,
+                            tool_calls_processed,
+                            model_attempts,
+                            retries,
+                        )
+                        .await;
+                }
             }
             needs_model_turn = false;
 
@@ -240,51 +280,122 @@ impl<M: StreamChatModel> Agent<M> {
                 .await
             {
                 Ok(response) => response,
-                Err(ModelCallOutcome::Cancelled) => {
-                    return self.cancel(events, tool_calls_processed, model_attempts, retries);
-                }
-                Err(ModelCallOutcome::Error(error)) => {
-                    self.state = AgentState::Failed;
-                    return Err(error);
+                Err(outcome) => {
+                    return self
+                        .handle_outcome(
+                            events,
+                            outcome,
+                            tool_calls_processed,
+                            model_attempts,
+                            retries,
+                        )
+                        .await;
                 }
             };
             self.steps_taken += 1;
             self.conversation
-                .add_assistant_response(response.content, response.tool_calls.clone());
+                .add_assistant_response(response.content.clone(), response.tool_calls.clone());
+            if let Err(outcome) = self
+                .send_event(
+                    &events,
+                    AgentEvent::AssistantRecorded {
+                        response: response.clone(),
+                    },
+                    cancellation,
+                )
+                .await
+            {
+                return self
+                    .handle_outcome(
+                        events,
+                        outcome,
+                        tool_calls_processed,
+                        model_attempts,
+                        retries,
+                    )
+                    .await;
+            }
 
             if !response.tool_calls.is_empty() {
                 for call in response.tool_calls {
                     if cancellation.is_cancelled() {
                         return self.cancel(events, tool_calls_processed, model_attempts, retries);
                     }
+                    if let Err(outcome) = self
+                        .send_event(
+                            &events,
+                            AgentEvent::ToolStarted {
+                                call_id: call.id.clone(),
+                                name: call.name.clone(),
+                            },
+                            cancellation,
+                        )
+                        .await
+                    {
+                        return self
+                            .handle_outcome(
+                                events,
+                                outcome,
+                                tool_calls_processed,
+                                model_attempts,
+                                retries,
+                            )
+                            .await;
+                    }
                     // 同步工具一旦开始不能被本章的协作式令牌抢占；取消会阻止下一项工具。
                     let content =
                         tool_result_content(self.tools.execute(&call.name, &call.arguments));
-                    self.conversation.add_tool(call.id, content);
+                    self.conversation.add_tool(call.id.clone(), content);
                     tool_calls_processed += 1;
+                    if let Err(outcome) = self
+                        .send_event(
+                            &events,
+                            AgentEvent::ToolFinished {
+                                call_id: call.id,
+                                name: call.name,
+                            },
+                            cancellation,
+                        )
+                        .await
+                    {
+                        return self
+                            .handle_outcome(
+                                events,
+                                outcome,
+                                tool_calls_processed,
+                                model_attempts,
+                                retries,
+                            )
+                            .await;
+                    }
                 }
                 needs_model_turn = true;
             } else if self.pending_inputs.is_empty() {
-                return Ok(self.stop(
-                    TerminationReason::NoPendingInput,
-                    tool_calls_processed,
-                    model_attempts,
-                    retries,
-                ));
+                return self
+                    .finish(
+                        events,
+                        TerminationReason::NoPendingInput,
+                        tool_calls_processed,
+                        model_attempts,
+                        retries,
+                    )
+                    .await;
             }
         }
 
-        Ok(self.stop(
+        self.finish(
+            events,
             TerminationReason::MaxStepsReached,
             tool_calls_processed,
             model_attempts,
             retries,
-        ))
+        )
+        .await
     }
 
     async fn call_model_with_retry(
         &self,
-        events: &mpsc::Sender<StreamEvent>,
+        events: &mpsc::Sender<AgentEvent>,
         cancellation: &CancellationToken,
         model_attempts: &mut usize,
         retries: &mut usize,
@@ -294,6 +405,14 @@ impl<M: StreamChatModel> Agent<M> {
                 return Err(ModelCallOutcome::Cancelled);
             }
             *model_attempts += 1;
+            self.send_event(
+                events,
+                AgentEvent::Attempt {
+                    attempt: *model_attempts,
+                },
+                cancellation,
+            )
+            .await?;
             match self.call_model_once(events, cancellation).await {
                 Ok(response) => return Ok(response),
                 Err(ModelCallOutcome::Error(AgentError::Model(error)))
@@ -303,7 +422,7 @@ impl<M: StreamChatModel> Agent<M> {
                     let delay = self.retry_policy.backoff_for_retry(*retries);
                     self.send_event(
                         events,
-                        StreamEvent::Retrying {
+                        AgentEvent::Retry {
                             attempt: *retries + 1,
                             delay,
                         },
@@ -328,7 +447,7 @@ impl<M: StreamChatModel> Agent<M> {
 
     async fn call_model_once(
         &self,
-        events: &mpsc::Sender<StreamEvent>,
+        events: &mpsc::Sender<AgentEvent>,
         cancellation: &CancellationToken,
     ) -> Result<ChatResponse, ModelCallOutcome> {
         let history = self.conversation.messages().to_vec();
@@ -350,7 +469,7 @@ impl<M: StreamChatModel> Agent<M> {
                     return Err(ModelCallOutcome::Cancelled);
                 }
                 event = model_rx.recv() => match event {
-                    Some(event) => match self.send_event(events, event, cancellation).await {
+                    Some(event) => match self.send_event(events, AgentEvent::Model(event), cancellation).await {
                         Ok(()) => {}
                         Err(outcome) => {
                             producer.abort();
@@ -369,8 +488,8 @@ impl<M: StreamChatModel> Agent<M> {
 
     async fn send_event(
         &self,
-        events: &mpsc::Sender<StreamEvent>,
-        event: StreamEvent,
+        events: &mpsc::Sender<AgentEvent>,
+        event: AgentEvent,
         cancellation: &CancellationToken,
     ) -> Result<(), ModelCallOutcome> {
         if events.is_closed() {
@@ -383,15 +502,31 @@ impl<M: StreamChatModel> Agent<M> {
         }
     }
 
+    async fn handle_outcome(
+        &mut self,
+        events: mpsc::Sender<AgentEvent>,
+        outcome: ModelCallOutcome,
+        tool_calls_processed: usize,
+        model_attempts: usize,
+        retries: usize,
+    ) -> Result<RunReport, AgentError> {
+        match outcome {
+            ModelCallOutcome::Cancelled => {
+                self.cancel(events, tool_calls_processed, model_attempts, retries)
+            }
+            ModelCallOutcome::Error(error) => self.fail(events, error).await,
+        }
+    }
+
     fn cancel(
         &mut self,
-        events: mpsc::Sender<StreamEvent>,
+        events: mpsc::Sender<AgentEvent>,
         tool_calls_processed: usize,
         model_attempts: usize,
         retries: usize,
     ) -> Result<RunReport, AgentError> {
         if !events.is_closed() {
-            let _ = events.try_send(StreamEvent::Cancelled);
+            let _ = events.try_send(AgentEvent::Cancelled);
         }
         Ok(self.stop(
             TerminationReason::Cancelled,
@@ -399,6 +534,37 @@ impl<M: StreamChatModel> Agent<M> {
             model_attempts,
             retries,
         ))
+    }
+
+    async fn finish(
+        &mut self,
+        events: mpsc::Sender<AgentEvent>,
+        termination: TerminationReason,
+        tool_calls_processed: usize,
+        model_attempts: usize,
+        retries: usize,
+    ) -> Result<RunReport, AgentError> {
+        let report = self.stop(termination, tool_calls_processed, model_attempts, retries);
+        match events.send(AgentEvent::Finished(report.clone())).await {
+            Ok(()) => Ok(report),
+            Err(_) => self.fail(events, AgentError::EventReceiverClosed).await,
+        }
+    }
+
+    async fn fail(
+        &mut self,
+        events: mpsc::Sender<AgentEvent>,
+        error: AgentError,
+    ) -> Result<RunReport, AgentError> {
+        self.state = AgentState::Failed;
+        if !events.is_closed() {
+            let _ = events
+                .send(AgentEvent::Failed {
+                    error: error.to_string(),
+                })
+                .await;
+        }
+        Err(error)
     }
 
     fn stop(

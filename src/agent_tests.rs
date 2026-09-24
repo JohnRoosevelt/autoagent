@@ -1,5 +1,5 @@
 use super::{
-    Agent, AgentError, AgentState, CancellationToken, RetryPolicy, StreamChatModel,
+    Agent, AgentError, AgentEvent, AgentState, CancellationToken, RetryPolicy, StreamChatModel,
     TerminationReason,
 };
 use crate::{
@@ -140,7 +140,7 @@ async fn updates_history_and_forwards_stream_events_for_each_input() {
     .unwrap();
     agent.enqueue_user("第一问");
     agent.enqueue_user("第二问");
-    let (tx, mut rx) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(64);
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.termination, TerminationReason::NoPendingInput);
     assert_eq!(report.steps_taken, 2);
@@ -156,8 +156,19 @@ async fn updates_history_and_forwards_stream_events_for_each_input() {
             Message::assistant("二")
         ]
     );
-    assert_eq!(rx.recv().await, Some(StreamEvent::Start));
-    assert_eq!(rx.recv().await, Some(StreamEvent::TextDelta("一".into())));
+    assert_eq!(rx.recv().await, Some(AgentEvent::Started));
+    assert_eq!(
+        rx.recv().await,
+        Some(AgentEvent::Input {
+            content: "第一问".into()
+        })
+    );
+    assert_eq!(rx.recv().await, Some(AgentEvent::Attempt { attempt: 1 }));
+    assert_eq!(rx.recv().await, Some(AgentEvent::Model(StreamEvent::Start)));
+    assert_eq!(
+        rx.recv().await,
+        Some(AgentEvent::Model(StreamEvent::TextDelta("一".into())))
+    );
 }
 
 #[tokio::test]
@@ -170,7 +181,7 @@ async fn retries_a_retryable_error_then_records_only_the_successful_response() {
         .unwrap()
         .with_retry_policy(zero_retry_policy(1));
     agent.enqueue_user("问题");
-    let (tx, mut rx) = mpsc::channel(16);
+    let (tx, mut rx) = mpsc::channel(64);
 
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.steps_taken, 1);
@@ -182,8 +193,8 @@ async fn retries_a_retryable_error_then_records_only_the_successful_response() {
         [Message::user("问题"), Message::assistant("完整回答")]
     );
     let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
-    assert!(events.contains(&StreamEvent::TextDelta("不完整".into())));
-    assert!(events.contains(&StreamEvent::Retrying {
+    assert!(events.contains(&AgentEvent::Model(StreamEvent::TextDelta("不完整".into()))));
+    assert!(events.contains(&AgentEvent::Retry {
         attempt: 2,
         delay: Duration::ZERO
     }));
@@ -199,13 +210,18 @@ async fn does_not_retry_non_retryable_errors() {
         .unwrap()
         .with_retry_policy(zero_retry_policy(3));
     agent.enqueue_user("问题");
-    let (tx, _rx) = mpsc::channel(4);
+    let (tx, mut rx) = mpsc::channel(64);
 
     let error = agent.run(tx).await.unwrap_err();
     assert!(matches!(
         error,
         AgentError::Model(LlmError::InvalidRequest { status: 401, .. })
     ));
+    let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+    assert!(events.iter().any(|event| matches!(
+        event,
+        AgentEvent::Failed { error } if error.contains("请求无效")
+    )));
     assert_eq!(model.requests().len(), 1);
     assert_eq!(agent.state(), AgentState::Failed);
     assert_eq!(agent.conversation().messages(), [Message::user("问题")]);
@@ -221,7 +237,7 @@ async fn retry_exhaustion_preserves_the_source_and_does_not_fabricate_messages()
         .unwrap()
         .with_retry_policy(zero_retry_policy(1));
     agent.enqueue_user("问题");
-    let (tx, _rx) = mpsc::channel(4);
+    let (tx, _rx) = mpsc::channel(64);
 
     let error = agent.run(tx).await.unwrap_err();
     assert!(matches!(
@@ -243,21 +259,24 @@ async fn cancellation_during_retry_backoff_stops_before_the_next_attempt() {
         .unwrap()
         .with_retry_policy(RetryPolicy::new(2, Duration::from_secs(60)));
     agent.enqueue_user("问题");
-    let (tx, mut rx) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(64);
     let report = {
         let run = agent.run_with_cancellation(tx, &token);
         tokio::pin!(run);
-        let event = tokio::select! {
-            event = rx.recv() => event,
-            result = &mut run => panic!("Agent unexpectedly completed: {result:?}"),
-        };
-        assert_eq!(
-            event,
-            Some(StreamEvent::Retrying {
-                attempt: 2,
-                delay: Duration::from_secs(60)
-            })
-        );
+        loop {
+            let event = tokio::select! {
+                event = rx.recv() => event,
+                result = &mut run => panic!("Agent unexpectedly completed: {result:?}"),
+            };
+            if event
+                == Some(AgentEvent::Retry {
+                    attempt: 2,
+                    delay: Duration::from_secs(60),
+                })
+            {
+                break;
+            }
+        }
         token.cancel();
         run.as_mut().await.unwrap()
     };
@@ -269,7 +288,7 @@ async fn cancellation_during_retry_backoff_stops_before_the_next_attempt() {
         agent.state(),
         AgentState::Stopped(TerminationReason::Cancelled)
     );
-    assert_eq!(rx.recv().await, Some(StreamEvent::Cancelled));
+    assert_eq!(rx.recv().await, Some(AgentEvent::Cancelled));
 }
 
 #[tokio::test]
@@ -278,15 +297,19 @@ async fn cancellation_during_a_model_stream_aborts_it_without_an_assistant_messa
     let token = CancellationToken::new();
     let mut agent = Agent::new(model.clone(), Conversation::new(), 2).unwrap();
     agent.enqueue_user("问题");
-    let (tx, mut rx) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(64);
     let report = {
         let run = agent.run_with_cancellation(tx, &token);
         tokio::pin!(run);
-        let event = tokio::select! {
-            event = rx.recv() => event,
-            result = &mut run => panic!("Agent unexpectedly completed: {result:?}"),
-        };
-        assert_eq!(event, Some(StreamEvent::Start));
+        loop {
+            let event = tokio::select! {
+                event = rx.recv() => event,
+                result = &mut run => panic!("Agent unexpectedly completed: {result:?}"),
+            };
+            if event == Some(AgentEvent::Model(StreamEvent::Start)) {
+                break;
+            }
+        }
         token.cancel();
         run.as_mut().await.unwrap()
     };
@@ -294,7 +317,7 @@ async fn cancellation_during_a_model_stream_aborts_it_without_an_assistant_messa
     assert_eq!(report.steps_taken, 0);
     assert_eq!(report.model_attempts, 1);
     assert_eq!(agent.conversation().messages(), [Message::user("问题")]);
-    assert_eq!(rx.recv().await, Some(StreamEvent::Cancelled));
+    assert_eq!(rx.recv().await, Some(AgentEvent::Cancelled));
 }
 
 struct CancellingTool {
@@ -332,7 +355,7 @@ async fn cancellation_while_forwarding_to_a_backpressured_event_channel_aborts_t
             event = rx.recv() => event,
             result = &mut run => panic!("Agent unexpectedly completed: {result:?}"),
         };
-        assert_eq!(event, Some(StreamEvent::Start));
+        assert_eq!(event, Some(AgentEvent::Started));
         tokio::task::yield_now().await;
         token.cancel();
         run.as_mut().await.unwrap()
@@ -380,7 +403,7 @@ async fn cancellation_after_one_tool_prevents_later_tools_and_the_next_model_cal
         .unwrap()
         .with_tool_registry(registry);
     agent.enqueue_user("执行");
-    let (tx, mut rx) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(64);
 
     let report = agent.run_with_cancellation(tx, &token).await.unwrap();
     assert_eq!(report.termination, TerminationReason::Cancelled);
@@ -393,7 +416,7 @@ async fn cancellation_after_one_tool_prevents_later_tools_and_the_next_model_cal
         agent.conversation().messages()[2].tool_call_id.as_deref(),
         Some("call_1")
     );
-    while rx.recv().await != Some(StreamEvent::Cancelled) {}
+    while rx.recv().await != Some(AgentEvent::Cancelled) {}
 }
 
 #[tokio::test]
@@ -407,7 +430,7 @@ async fn completes_a_tool_round_and_associates_the_result_with_its_call() {
         .unwrap()
         .with_tool_registry(weather_registry());
     agent.enqueue_user("北京天气？");
-    let (tx, _rx) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(64);
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.termination, TerminationReason::NoPendingInput);
     assert_eq!(report.steps_taken, 2);
@@ -430,6 +453,16 @@ async fn completes_a_tool_round_and_associates_the_result_with_its_call() {
         Message::assistant("北京天气是晴，20°C。")
     );
     assert_eq!(model.requests().len(), 2);
+    let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+    assert!(events.contains(&AgentEvent::ToolStarted {
+        call_id: "call_1".into(),
+        name: "get_weather".into(),
+    }));
+    assert!(events.contains(&AgentEvent::ToolFinished {
+        call_id: "call_1".into(),
+        name: "get_weather".into(),
+    }));
+    assert!(events.contains(&AgentEvent::Finished(report)));
 }
 
 #[tokio::test]
@@ -447,7 +480,7 @@ async fn executes_multiple_tool_calls_serially_in_model_order() {
     .unwrap()
     .with_tool_registry(weather_registry());
     agent.enqueue_user("比较北京和上海天气");
-    let (tx, _rx) = mpsc::channel(8);
+    let (tx, _rx) = mpsc::channel(64);
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.tool_calls_processed, 2);
     let messages = agent.conversation().messages();
@@ -475,7 +508,7 @@ async fn returns_tool_failures_to_the_model_and_continues() {
     .unwrap()
     .with_tool_registry(weather_registry());
     agent.enqueue_user("查询天气");
-    let (tx, _rx) = mpsc::channel(8);
+    let (tx, _rx) = mpsc::channel(64);
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.tool_calls_processed, 3);
     let messages = agent.conversation().messages();
@@ -504,7 +537,7 @@ async fn max_steps_counts_completed_model_turns_but_still_records_tool_results()
     .unwrap()
     .with_tool_registry(weather_registry());
     agent.enqueue_user("北京天气？");
-    let (tx, _rx) = mpsc::channel(8);
+    let (tx, _rx) = mpsc::channel(64);
     let report = agent.run(tx).await.unwrap();
     assert_eq!(report.termination, TerminationReason::MaxStepsReached);
     assert_eq!(report.steps_taken, 1);

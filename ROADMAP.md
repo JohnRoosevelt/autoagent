@@ -36,7 +36,7 @@
 | ☑ | 05 | Tool / Function Calling | 建立 OpenAI-compatible tools/tool_calls 协议模型、请求序列化、非流式与 SSE 解析及 Agent 暂停承接；不执行真实工具。 |
 | ☑ | 06 | Tool Registry | 建立启动时组装的本地工具注册表、最小参数校验、串行分发、`role: tool` 结果回填与继续循环；不是动态插件系统。 |
 | ☑ | 07 | Retry / Cancel | 在 Agent 模型边界实现有限、确定性 retry/backoff 与应用内协作式取消；可观察尝试/重试/取消，不实现全局限流、熔断、队列或完整 Ctrl+C 集成。 |
-| ☐ | 08 | Event / Lifecycle | 用事件描述 Agent 发生了什么，让核心逻辑与显示层解耦。 |
+| ☑ | 08 | Event / Lifecycle | 以 `AgentEvent` 描述运行、输入、尝试、重试、账本、工具与终止生命周期；保留 `StreamEvent` 作为 LLM 流。 |
 
 ## 第二幕 · 让它活着（09–13）
 
@@ -176,6 +176,15 @@
 - ☑ 未实现全局限流、熔断器、任务队列、后台调度、完整 Ctrl+C signal handler、外部进程强杀或复杂 lifecycle event bus；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 08 章 Checkpoint
+
+- ☑ 定义最小 `AgentEvent` 生命周期输出，覆盖 started、input、attempt、retry、assistant recorded、tool start/finish、cancelled、finished 与 failed；
+- ☑ 将 `Agent::run` 与 `run_with_cancellation` 的输出统一改为 `mpsc::Sender<AgentEvent>`，使显示层只订阅 Agent 边界；
+- ☑ 以 `AgentEvent::Model(StreamEvent)` 转发 LLM 流，保留 `StreamEvent::Start`、`TextDelta` 与 `Done` 的模型协议语义，不将 Agent retry/cancel 混入其中；
+- ☑ 更新入口与离线 Agent 测试以消费新的事件边界；
+- ☑ 未引入全局 event bus、持久化事件日志、订阅过滤、跨进程传递或 observability 后端；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 08 章 · Event / Lifecycle**，在本章最小 `Retrying` / `Cancelled` 可观察性之上，讨论更完整的事件与生命周期边界。
+进入 **第 09 章 · Context Manager**，在稳定的 Agent 生命周期边界之上管理上下文窗口。

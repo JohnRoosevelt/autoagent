@@ -13,12 +13,14 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 | 03 | `chapter-03-streaming` | Streaming / SSE：增量事件解析、统一事件流、实时文本输出与最终 usage 汇总。 |
 | 05 | `chapter-05-tool-calling` | Tool / Function Calling：OpenAI-compatible tools/tool_calls 协议映射、流式聚合与 Agent 工具请求暂停状态。 |
 | 06 | `chapter-06-tool-registry` | Tool Registry：本地工具注册、最小参数校验、串行分发、`role: tool` 结果回填与继续 Agent Loop。 |
+| 07 | `chapter-07-retry-cancel` | Retry / Cancel：有限确定性 retry/backoff 与应用内协作式取消。 |
+| 08 | `chapter-08-event-lifecycle` | Event / Lifecycle：以最小 `AgentEvent` 统一 Agent 生命周期与已解析模型流。 |
 
 第 04 章完成后的预定 checkpoint 名称为 `chapter-04-agent-loop`；本地 checkpoint 尚未创建前，不应将其列为已发布 Tag。该章固定 Agent Loop 的会话状态、事件转发和最大步数终止保护。
 
 第 06 章的 Registry 仅在程序启动时组装编译进二进制的 Rust 工具；它不是动态库、WASM、目录发现、热加载或 Plugin Manager。更进一步的动态扩展留待第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP。
 
-第 07 章代码已完成有限 retry/backoff 与应用内协作式取消，但本次**没有创建 commit 或 tag**，因此不得将其写入上方“已发布 Checkpoint”表。该章不包含全局限流、熔断器、任务队列、完整 Ctrl+C signal handler、外部进程强杀或复杂 lifecycle event bus。
+第 07 章已发布为 `chapter-07-retry-cancel`，第 08 章已发布为 `chapter-08-event-lifecycle`。第 08 章不包含全局 event bus、持久化事件日志、订阅过滤、跨进程事件传递或 observability 后端。
 
 ## 查看 Tag
 
