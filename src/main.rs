@@ -3,10 +3,10 @@ mod llm;
 mod message;
 mod tool;
 
-use agent::Agent;
+use agent::{Agent, RetryPolicy};
 use llm::{FinishReason, StreamEvent, client::LlmClient};
 use message::{Conversation, Role};
-use std::io::Write;
+use std::{io::Write, time::Duration};
 use tokio::sync::mpsc;
 use tool::{GetWeatherTool, ToolRegistry};
 
@@ -20,7 +20,9 @@ async fn main() -> anyhow::Result<()> {
     conversation.add_system("你是一个简洁、准确的助手。");
     let mut tools = ToolRegistry::new();
     tools.register(GetWeatherTool)?;
-    let mut agent = Agent::new(client, conversation, 3)?.with_tool_registry(tools);
+    let mut agent = Agent::new(client, conversation, 3)?
+        .with_tool_registry(tools)
+        .with_retry_policy(RetryPolicy::new(2, Duration::from_millis(250)));
     agent.enqueue_user("请查询北京现在的天气。请调用 get_weather，不要猜测结果。");
 
     let (tx, mut rx) = mpsc::channel(32);
@@ -43,6 +45,10 @@ async fn main() -> anyhow::Result<()> {
                         }
                     }
                 }
+                StreamEvent::Retrying { attempt, delay } => {
+                    println!("模型请求失败，将在 {:?} 后开始第 {attempt} 次尝试", delay);
+                }
+                StreamEvent::Cancelled => println!("Agent 已取消。"),
             }
         }
     });
@@ -59,8 +65,12 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     println!(
-        "Agent 结束: {:?}，模型调用 {} 步，已处理 {} 个工具调用",
-        report.termination, report.steps_taken, report.tool_calls_processed
+        "Agent 结束: {:?}，成功模型回合 {}，实际尝试 {}，重试 {}，已处理 {} 个工具调用",
+        report.termination,
+        report.steps_taken,
+        report.model_attempts,
+        report.retries,
+        report.tool_calls_processed
     );
     Ok(())
 }

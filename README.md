@@ -21,6 +21,8 @@
 - 解析服务端返回的输入与输出 token 用量，用三轮对话示例观察历史重放带来的输入增长；
 - 通过 SSE 接收 OpenAI-compatible 服务的增量事件，并用 Tokio channel 将 `Start`、文本增量与完成事件交给显示层；
 - 由 `Agent` 管理会话、待处理输入与执行步数，在内部循环调用模型、转发流事件并回填 assistant 回复；
+- 在 Agent 的模型调用边界按确定性有限退避重试网络、`408`、`429` 与 `5xx` 错误；失败尝试不会写入不完整 assistant 消息；
+- 使用应用内协作式 `CancellationToken` 取消模型等待、流转发、退避与尚未开始的工具调用，并以明确终止原因、运行摘要和最小事件对外可观察；
 - 声明 OpenAI-compatible `tools`，解析非流式与 SSE 流式 `tool_calls`（包括分块 arguments），并保留 assistant 工具调用上下文；
 - 通过启动时组装的本地 `ToolRegistry` 注册、查找并串行分发编译进程序的 Rust 工具，拒绝重复工具名；
 - 工具调用 arguments 在执行前解析为 JSON，并由工具完成最小字段校验；成功或失败结果均作为关联 `tool_call_id` 的 `role: tool` 消息回填，随后继续 Agent Loop；
@@ -33,7 +35,7 @@
 .
 ├── src/
 │   ├── main.rs          # 程序入口：配置演示输入并显示 Agent 转发的流事件
-│   ├── agent.rs         # Agent Loop：会话状态、步数保护、流事件转发与回复回填
+│   ├── agent.rs         # Agent Loop：会话状态、重试/协作式取消、流事件转发与回复回填
 │   ├── message.rs       # Role、Message 与 Conversation 对话账本
 │   ├── tool.rs          # 本地 Tool trait、Registry 与固定离线演示工具
 │   ├── llm.rs           # ChatResponse、Usage、StreamEvent 与 LLM 错误类型
@@ -97,34 +99,40 @@ cargo run
 
 ## 当前示例
 
-当前入口会创建一段包含 system 消息的会话，在启动时向本地 `ToolRegistry` 注册完全离线的 `get_weather` 工具，并向 `Agent` 排入工具请求：
+当前入口会创建一段包含 system 消息的会话，在启动时向本地 `ToolRegistry` 注册完全离线的 `get_weather` 工具，配置最多两次、初始 250ms 的确定性模型重试，并向 `Agent` 排入工具请求：
 
 ```text
 system: 你是一个简洁、准确的助手。
 user: 请查询北京现在的天气。请调用 get_weather，不要猜测结果。
 ```
 
-`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和 Registry 导出的工具定义以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 将 assistant `tool_calls` 完整写回账本，经 Registry 按顺序执行工具，并将固定模拟天气结果（或清晰 JSON 错误）以 `role: tool` 与对应 `tool_call_id` 回填，继续请求模型生成最终回复。
+`Agent` 在每一步才将下一条用户输入写入账本，并把完整历史和 Registry 导出的工具定义以 SSE 请求发送给模型。客户端把协议细节转换为 `Start`、`TextDelta`、`Done` 事件；文本增量即时转发，而流式工具调用在客户端按 index 聚合，最终仅通过 `Done(ChatResponse)` 交付完整调用。入口会打印模型请求的调用 ID、函数名和原始 arguments。随后 Agent 将 assistant `tool_calls` 完整写回账本，经 Registry 按顺序执行工具，并将固定模拟天气结果（或清晰 JSON 错误）以 `role: tool` 与对应 `tool_call_id` 回填，继续请求模型生成最终回复。模型出现网络、408、429 或 5xx 失败时，Agent 会发出 `Retrying` 并重新发起该轮请求；只有收到完整成功的 `ChatResponse` 才入账。入口最后会显示成功回合、实际尝试和重试次数。
 
 本章的 Registry 只是在程序启动时组装编译进二进制的本地 Rust 工具，不是动态库、WASM、目录扫描、热加载或 Plugin Manager。更进一步的动态扩展将分别在第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP 探索。
 
 ## 错误处理约定
 
 - `main.rs` 使用 `anyhow::Result` 作为应用入口的统一错误出口；
-- `agent` 模块用 `AgentError` 区分配置、模型、模型任务与事件接收方错误；
+- `agent` 模块用 `AgentError` 区分配置、模型、重试耗尽、模型任务与事件接收方错误；
+- `RetryPolicy` 使用有限、无 jitter 的指数退避；`RunReport` 分别报告成功模型回合、实际尝试与重试次数；
+- `CancellationToken` 是应用内协作式取消入口：取消会停止模型等待、流转发、退避和未开始的工具；已开始的同步本地工具不能被本章抢占；
 - `llm` 模块使用 `thiserror` 定义 `LlmError`，让调用方可以依据错误类型决定是否重试；
-- `408`、`429` 与 `5xx` 被视为可重试的 HTTP 错误；
+- `408`、`429` 与 `5xx` 及网络错误被视为可重试错误；普通 `4xx`、配置与协议/JSON 解析错误不会重试；
 - 缺失或为空的 `AGENT_API_KEY` 会被识别为配置错误，并在发起网络请求前返回。
 
 ## 后续方向
 
 以下是计划逐步探索的方向，具体实现会随着学习和实践调整：
 
-- 重试、退避与限流处理；
+- 更完整的超时与限流处理；
 - 对话历史与上下文管理；
 - Tool Calling / Function Calling；
 - 多步骤任务规划与执行；
 - 更完善的日志、测试与可观测性。
+
+## 第 07 章范围
+
+本章只实现模型调用的有限 retry/backoff 与应用内协作式取消，不实现全局限流、熔断器、任务队列、后台调度、完整 Ctrl+C signal handler、外部进程强杀或复杂 lifecycle event bus。`StreamEvent::Retrying` 与 `StreamEvent::Cancelled` 仅提供当前显示层所需的最小可观察性；第 08 章再讨论更完整的事件与生命周期模型。
 
 ## 开发检查
 

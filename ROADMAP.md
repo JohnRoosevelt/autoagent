@@ -35,7 +35,7 @@
 | ☑ | 04 | Agent Loop | 以独立 Agent 管理会话、状态与流式调用循环；通过待处理输入和最大步数保护明确结束运行，并为后续工具结果回填预留分支。 |
 | ☑ | 05 | Tool / Function Calling | 建立 OpenAI-compatible tools/tool_calls 协议模型、请求序列化、非流式与 SSE 解析及 Agent 暂停承接；不执行真实工具。 |
 | ☑ | 06 | Tool Registry | 建立启动时组装的本地工具注册表、最小参数校验、串行分发、`role: tool` 结果回填与继续循环；不是动态插件系统。 |
-| ☐ | 07 | Retry / Cancel | 处理超时、限流、重试，以及 Ctrl+C 取消和资源清理。 |
+| ☑ | 07 | Retry / Cancel | 在 Agent 模型边界实现有限、确定性 retry/backoff 与应用内协作式取消；可观察尝试/重试/取消，不实现全局限流、熔断、队列或完整 Ctrl+C 集成。 |
 | ☐ | 08 | Event / Lifecycle | 用事件描述 Agent 发生了什么，让核心逻辑与显示层解耦。 |
 
 ## 第二幕 · 让它活着（09–13）
@@ -166,6 +166,16 @@
 - ☑ 保持 SSE/tool_calls 协议解析在 LLM 客户端；未引入动态库、WASM、目录发现、热加载或 Plugin Manager；第 14 章 Skills、第 20 章 Plugins 和第 24 章 MCP 再探索动态扩展；
 - ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
 
+## 第 07 章 Checkpoint
+
+- ☑ 仅对 `LlmError::is_retryable()` 认可的网络、`408`、`429` 与 `5xx` 错误进行有限、确定性指数退避重试；普通 `4xx`、配置和协议/JSON 错误不重试；
+- ☑ 将 retry/cancel 放在 Agent 的模型调用边界；每次重试重新调用模型，只有完整成功的 `ChatResponse` 才入账 assistant/tool 后续流程；
+- ☑ 提供应用内 `CancellationToken`，在模型等待、流事件转发、退避、下一次模型调用与每项同步工具开始前协作式响应取消；已开始同步工具不抢占；
+- ☑ 以 `TerminationReason::Cancelled`、`RunReport` 的成功回合/实际尝试/重试计数及最小 `Retrying` / `Cancelled` 事件提供可观察性；
+- ☑ 使用完全离线测试覆盖可重试与不可重试错误、耗尽、退避取消、流中取消、工具序列取消，以及第 06 章工具与步数行为不回归；
+- ☑ 未实现全局限流、熔断器、任务队列、后台调度、完整 Ctrl+C signal handler、外部进程强杀或复杂 lifecycle event bus；
+- ☑ `cargo fmt --check`、`cargo check`、`cargo clippy -- -D warnings`、`cargo test` 全部通过。
+
 ## 当前下一步
 
-进入 **第 07 章 · Retry / Cancel**，处理超时、限流、重试以及 Ctrl+C 取消和资源清理。
+进入 **第 08 章 · Event / Lifecycle**，在本章最小 `Retrying` / `Cancelled` 可观察性之上，讨论更完整的事件与生命周期边界。

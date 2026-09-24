@@ -2,6 +2,7 @@ pub mod client;
 
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use serde_json::Value;
+use std::time::Duration;
 
 /// 宿主程序可提供给 OpenAI-compatible 模型的函数定义。
 #[derive(Clone, Debug, PartialEq)]
@@ -86,6 +87,13 @@ pub enum StreamEvent {
     Start,
     TextDelta(String),
     Done(ChatResponse),
+    /// Agent 将再次发起模型请求；`attempt` 为即将开始的第几次尝试。
+    Retrying {
+        attempt: usize,
+        delay: Duration,
+    },
+    /// Agent 收到应用内协作式取消请求后停止运行。
+    Cancelled,
 }
 
 #[derive(Debug, thiserror::Error)]

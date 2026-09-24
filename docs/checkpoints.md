@@ -18,6 +18,8 @@ Tag 用于固定指向“该章节完成时的纯净代码”。后续继续开�
 
 第 06 章的 Registry 仅在程序启动时组装编译进二进制的 Rust 工具；它不是动态库、WASM、目录发现、热加载或 Plugin Manager。更进一步的动态扩展留待第 14 章 Skills、第 20 章 Plugins 与第 24 章 MCP。
 
+第 07 章代码已完成有限 retry/backoff 与应用内协作式取消，但本次**没有创建 commit 或 tag**，因此不得将其写入上方“已发布 Checkpoint”表。该章不包含全局限流、熔断器、任务队列、完整 Ctrl+C signal handler、外部进程强杀或复杂 lifecycle event bus。
+
 ## 查看 Tag
 
 列出所有章节 checkpoint：
